@@ -1,12 +1,18 @@
 # wyre-stars-watcher
 
-Daily digest of growth metrics across the WYRE estate, posted to Slack:
+Daily digest of GitHub star activity across every non-archived `wyre-technology`
+repo, posted to Slack.
 
-- GitHub stars on every non-archived `wyre-technology` repo
-- npm downloads (last 24h) for every published `@wyre-technology/*` package
-- GHCR pulls (cumulative) for every container under `ghcr.io/wyre-technology/*`
+Runs every day at 14:00 UTC (10am ET / 9am ET depending on DST) via GitHub
+Actions.
 
-Runs every day at 14:00 UTC (10am ET / 9am ET depending on DST) via GitHub Actions.
+> Why only stars? npm downloads aren't queryable for our packages — we publish
+> to GitHub Packages (`npm.pkg.github.com`), which has no public download
+> counter, and the public npm registry obviously reports 0. GitHub deprecated
+> the `download_count` field on container packages in late 2022; it always
+> returns 0 now. Adoption metrics (tool calls, active orgs, top vendors) live
+> in a separate digest sourced from the gateway DB — see
+> `wyre-technology/gateway-adoption-watcher`.
 
 ## Setup
 
