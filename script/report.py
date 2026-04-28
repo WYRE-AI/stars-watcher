@@ -71,14 +71,24 @@ def fetch_repo_stars() -> dict[str, int]:
 
 
 def fetch_npm_packages() -> list[str]:
-    """All packages published under the @wyre-technology scope."""
-    url = (
-        "https://registry.npmjs.org/-/v1/search"
-        f"?text={urllib.parse.quote(f'scope:{NPM_SCOPE}')}&size=250"
-    )
-    with urllib.request.urlopen(url, timeout=30) as resp:
-        data = json.loads(resp.read())
-    return sorted({obj["package"]["name"] for obj in data.get("objects", [])})
+    """All npm packages owned by the wyre-technology GitHub org.
+
+    The npm public registry has no clean "list packages in scope" API for an
+    arbitrary scope (the search endpoint's `scope:` qualifier is ignored and
+    returns generic popular results). GitHub's packages API does expose the
+    org's npm packages directly, so we read it from there.
+    """
+    try:
+        pkgs = gh_api(f"/orgs/{ORG}/packages?package_type=npm")
+    except urllib.error.HTTPError:
+        return []
+    names: list[str] = []
+    for pkg in pkgs:
+        n = pkg.get("name") or ""
+        # GitHub returns names without the @scope/ prefix; rebuild canonical name.
+        canonical = n if n.startswith("@") else f"@{NPM_SCOPE}/{n}"
+        names.append(canonical)
+    return sorted(set(names))
 
 
 def fetch_npm_downloads(packages: list[str]) -> dict[str, int]:
