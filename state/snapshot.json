@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-04-30T15:45:39.673652+00:00",
+  "captured_at": "2026-05-01T14:51:14.009003+00:00",
   "stars": {
     ".github": 0,
     "CIPP": 0,
@@ -37,6 +37,7 @@
     "ironscales-mcp": 0,
     "itglue-cli": 0,
     "itglue-mcp": 8,
+    "kaseya-vsa-mcp": 0,
     "knowbe4-mcp": 0,
     "liongard-cli": 0,
     "liongard-mcp": 0,
@@ -47,7 +48,7 @@
     "mimecast-mcp": 0,
     "msp-claude-plugins": 16,
     "ninjaone-cli": 0,
-    "ninjaone-mcp": 6,
+    "ninjaone-mcp": 7,
     "node-atera": 0,
     "node-blumira": 0,
     "node-connectwise-automate": 0,
@@ -57,7 +58,9 @@
     "node-halopsa": 0,
     "node-hudu": 0,
     "node-huntress": 0,
+    "node-iqms": 0,
     "node-it-glue": 0,
+    "node-kaseya-vsa": 0,
     "node-liongard": 0,
     "node-mimecast": 0,
     "node-ninjaone": 0,
