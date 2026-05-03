@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-05-02T14:42:13.122250+00:00",
+  "captured_at": "2026-05-03T14:43:39.591509+00:00",
   "stars": {
     ".github": 0,
     "CIPP": 0,
@@ -48,7 +48,7 @@
     "mcpgw-cli": 0,
     "mimecast-cli": 0,
     "mimecast-mcp": 0,
-    "msp-claude-plugins": 16,
+    "msp-claude-plugins": 17,
     "ninjaone-cli": 0,
     "ninjaone-mcp": 7,
     "node-atera": 0,
@@ -92,7 +92,7 @@
     "superops-cli": 0,
     "superops-mcp": 0,
     "syncro-mcp": 2,
-    "threatlocker-mcp": 0,
+    "threatlocker-mcp": 1,
     "unitrends-mcp": 0,
     "veeam-cli": 0,
     "wyre-astro-theme": 0,
