@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-05-04T15:57:41.171451+00:00",
+  "captured_at": "2026-05-05T15:50:03.439764+00:00",
   "stars": {
     ".github": 0,
     "CIPP": 0,
@@ -15,7 +15,7 @@
     "avanan-mcp": 1,
     "blumira-cli": 0,
     "blumira-mcp": 0,
-    "cipp-mcp": 1,
+    "cipp-mcp": 2,
     "connectwise-automate-mcp": 0,
     "connectwise-manage-mcp": 3,
     "datto-bcdr-mcp": 0,
@@ -49,8 +49,8 @@
     "mimecast-cli": 0,
     "mimecast-mcp": 0,
     "msp-claude-plugins": 17,
-    "ninjaone-cli": 0,
-    "ninjaone-mcp": 7,
+    "ninjaone-cli": 1,
+    "ninjaone-mcp": 8,
     "node-atera": 0,
     "node-blumira": 0,
     "node-connectwise-automate": 0,
