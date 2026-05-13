@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-05-12T16:16:20.305885+00:00",
+  "captured_at": "2026-05-13T16:15:18.441389+00:00",
   "stars": {
     ".github": 0,
     "CIPP": 0,
@@ -78,7 +78,7 @@
     "node-threatlocker": 0,
     "node-unitrends": 0,
     "proofpoint-mcp": 0,
-    "qbo-mcp": 1,
+    "qbo-mcp": 2,
     "rocketcyber-cli": 0,
     "rocketcyber-mcp": 0,
     "rootly-cli": 0,
