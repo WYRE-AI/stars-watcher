@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-05-14T16:08:30.151726+00:00",
+  "captured_at": "2026-05-15T16:01:26.673170+00:00",
   "stars": {
     ".github": 0,
     "CIPP": 0,
@@ -51,7 +51,7 @@
     "mcpgw-cli": 0,
     "mimecast-cli": 0,
     "mimecast-mcp": 0,
-    "msp-claude-plugins": 22,
+    "msp-claude-plugins": 23,
     "ninjaone-cli": 1,
     "ninjaone-mcp": 11,
     "node-atera": 0,
@@ -91,7 +91,7 @@
     "sherweb-mcp": 0,
     "spamtitan-mcp": 0,
     "spanning-mcp": 0,
-    "stars-watcher": 0,
+    "stars-watcher": 1,
     "superops-cli": 0,
     "superops-mcp": 0,
     "syncro-mcp": 2,
