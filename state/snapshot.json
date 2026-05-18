@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-05-17T14:52:01.367479+00:00",
+  "captured_at": "2026-05-18T16:44:51.437008+00:00",
   "stars": {
     ".github": 0,
     "CIPP": 0,
@@ -51,7 +51,7 @@
     "mcpgw-cli": 0,
     "mimecast-cli": 0,
     "mimecast-mcp": 0,
-    "msp-claude-plugins": 23,
+    "msp-claude-plugins": 24,
     "ninjaone-cli": 1,
     "ninjaone-mcp": 11,
     "node-atera": 0,
