@@ -228,6 +228,25 @@ def fetch_glama_servers() -> list:
     return servers
 
 
+def build_glama_block(
+    mcp_repos: list[str],
+    glama: dict[str, str],
+    prev_glama: dict[str, str],
+) -> dict:
+    """Slack section: Glama.ai directory coverage."""
+    indexed = [r for r in mcp_repos if r in glama]
+    absent = [r for r in mcp_repos if r not in glama]
+    lines = [f"*:telescope: Glama.ai*  ·  {len(indexed)} of {len(mcp_repos)} servers indexed"]
+
+    newly = [r for r in indexed if r not in prev_glama]
+    if newly:
+        lines.append(f"_Newly indexed:_ {', '.join('`' + r + '`' for r in newly)}")
+    if absent:
+        lines.append(f"_Not on Glama:_ {', '.join('`' + r + '`' for r in absent)}")
+
+    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {

@@ -101,5 +101,26 @@ class TestGlamaMatch(unittest.TestCase):
         report.match_glama(GLAMA_FIXTURE, ["xero-mcp"])
 
 
+class TestGlamaBlock(unittest.TestCase):
+    def test_reports_indexed_count_and_absent(self):
+        block = report.build_glama_block(
+            mcp_repos=["xero-mcp", "hudu-mcp", "qbo-mcp"],
+            glama={"xero-mcp": "yyxqea2oqs"},
+            prev_glama={"xero-mcp": "yyxqea2oqs"},
+        )
+        text = block["text"]["text"]
+        self.assertIn("1 of 3", text)
+        self.assertIn("qbo-mcp", text)
+        self.assertIn("hudu-mcp", text)
+
+    def test_flags_newly_indexed(self):
+        block = report.build_glama_block(
+            mcp_repos=["xero-mcp"],
+            glama={"xero-mcp": "yyxqea2oqs"},
+            prev_glama={},
+        )
+        self.assertIn("newly indexed", block["text"]["text"].lower())
+
+
 if __name__ == "__main__":
     unittest.main()
