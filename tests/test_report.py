@@ -178,6 +178,23 @@ class TestPulseMCPMatch(unittest.TestCase):
         report.match_pulsemcp(PULSEMCP_FIXTURE, ["autotask-mcp"])
 
 
+class TestPulseMCPBlock(unittest.TestCase):
+    def test_skipped_when_no_data(self):
+        block = report.build_pulsemcp_block({}, {})
+        self.assertEqual(block["type"], "context")
+        self.assertIn("PulseMCP", block["elements"][0]["text"])
+
+    def test_ranks_top_visits_with_deltas(self):
+        block = report.build_pulsemcp_block(
+            visits={"autotask-mcp": 850, "qbo-mcp": 120},
+            prev_visits={"autotask-mcp": 800, "qbo-mcp": 120},
+        )
+        text = block["text"]["text"]
+        self.assertIn("autotask-mcp", text)
+        self.assertIn("+50", text)
+        self.assertIn("qbo-mcp", text)
+
+
 class TestFormatMessageIntegration(unittest.TestCase):
     def test_message_includes_all_sections(self):
         payload = report.format_message(

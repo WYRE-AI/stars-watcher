@@ -312,6 +312,55 @@ def match_pulsemcp(servers: list, mcp_repos: list[str]) -> dict[str, int]:
     return out
 
 
+def fetch_pulsemcp_visits(mcp_repos: list[str]) -> dict[str, int]:
+    """Fetch visitor estimates from PulseMCP for wyre-technology MCP servers.
+
+    Queries PULSEMCP_URL with q=wyre-technology, follows offset-based pages,
+    and passes the raw server list through match_pulsemcp for filtering.
+    No auth is required; a descriptive User-Agent is sent per PulseMCP docs.
+    Returns {} on network failure (caller uses safe() wrapper).
+    """
+    servers: list = []
+    offset = 0
+    count = 100
+    while True:
+        url = f"{PULSEMCP_URL}?q={ORG}&count={count}&offset={offset}"
+        data = http_get_json(url)
+        batch = data.get("servers", [])
+        servers.extend(batch)
+        total = data.get("metadata", {}).get("total", 0)
+        offset += len(batch)
+        if not batch or offset >= total:
+            break
+    return match_pulsemcp(servers, mcp_repos)
+
+
+def build_pulsemcp_block(visits: dict[str, int], prev_visits: dict[str, int]) -> dict:
+    """Slack block: top MCP repos by PulseMCP visitor estimate (4-week window).
+
+    Mirrors build_clones_block: top-10 ranking with day-over-day deltas via
+    fmt_change(). Renders a graceful context line when no data is available
+    (servers not yet indexed or fetch skipped via safe() wrapper).
+    """
+    if not visits:
+        return {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "_PulseMCP traffic skipped — no data or servers not yet indexed._",
+                }
+            ],
+        }
+    ranked = sorted(visits.items(), key=lambda kv: -kv[1])[:10]
+    lines = ["*:zap: PulseMCP traffic (4w visitors)*"]
+    for name, count in ranked:
+        delta = count - prev_visits.get(name, count)
+        suffix = f" ({fmt_change(delta)})" if delta else ""
+        lines.append(f"• `{name}` {count}{suffix}")
+    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {
