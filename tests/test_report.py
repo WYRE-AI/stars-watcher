@@ -122,5 +122,21 @@ class TestGlamaBlock(unittest.TestCase):
         self.assertIn("newly indexed", block["text"]["text"].lower())
 
 
+class TestClonesBlock(unittest.TestCase):
+    def test_skipped_when_no_data(self):
+        block = report.build_clones_block({}, {})
+        self.assertEqual(block["type"], "context")
+        self.assertIn("skipped", block["elements"][0]["text"])
+
+    def test_ranks_top_cloned_with_deltas(self):
+        block = report.build_clones_block(
+            clones={"autotask-mcp": 40, "qbo-mcp": 12},
+            prev_clones={"autotask-mcp": 30, "qbo-mcp": 12},
+        )
+        text = block["text"]["text"]
+        self.assertIn("autotask-mcp", text)
+        self.assertIn("+10", text)
+
+
 if __name__ == "__main__":
     unittest.main()

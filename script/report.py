@@ -247,6 +247,45 @@ def build_glama_block(
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
 
 
+def fetch_clone_traffic(repo_names: list[str]) -> dict[str, int]:
+    """14-day clone counts per repo. Requires the GH_API_TOKEN PAT with
+    Administration:Read. Returns {} (caller renders 'skipped') if the token
+    is absent or any call is forbidden — the run must never fail here."""
+    token = _gh_token(admin=True)
+    if not token:
+        return {}
+    out: dict[str, int] = {}
+    for name in repo_names:
+        try:
+            data = gh_api(f"/repos/{ORG}/{name}/traffic/clones", token=token)
+        except urllib.error.HTTPError as exc:
+            if exc.code in (403, 404):
+                continue
+            raise
+        if isinstance(data, dict):
+            out[name] = data.get("count", 0)
+    return out
+
+
+def build_clones_block(clones: dict[str, int], prev_clones: dict[str, int]) -> dict:
+    """Slack block: top-cloned repos over the trailing 14 days, with deltas.
+    Renders a 'skipped' context line when no clone data is available."""
+    if not clones:
+        return {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": "_Clone traffic skipped — no GH_API_TOKEN._"}
+            ],
+        }
+    ranked = sorted(clones.items(), key=lambda kv: -kv[1])[:10]
+    lines = ["*:arrows_counterclockwise: Most cloned (14d)*"]
+    for name, count in ranked:
+        delta = count - prev_clones.get(name, count)
+        suffix = f" ({fmt_change(delta)})" if delta else ""
+        lines.append(f"• `{name}` {count}{suffix}")
+    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {
