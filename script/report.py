@@ -378,6 +378,8 @@ def format_message(
     prev_glama: dict[str, str],
     clones: dict[str, int],
     prev_clones: dict[str, int],
+    visits: dict[str, int],
+    prev_visits: dict[str, int],
 ) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -430,6 +432,7 @@ def format_message(
     mcp_repos = mcp_repo_names(curr)
     blocks.append({"type": "divider"})
     blocks.append(build_clones_block(clones, prev_clones))
+    blocks.append(build_pulsemcp_block(visits, prev_visits))
     blocks.append(build_registry_block(mcp_repos, registry, releases, prev_registry))
     blocks.append(build_glama_block(mcp_repos, glama, prev_glama))
 
@@ -483,6 +486,7 @@ def main() -> int:
     prev_registry = prev.get("registry", {})
     prev_glama = prev.get("glama", {})
     prev_clones = prev.get("clones_14d", {})
+    prev_visits = prev.get("pulsemcp_visits", {})
     mcp_repos = mcp_repo_names(stars)
 
     def safe(label, fn, default):
@@ -501,10 +505,13 @@ def main() -> int:
     glama = match_glama(glama_raw, mcp_repos)
     print("Fetching clone traffic…")
     clones = safe("clones", lambda: fetch_clone_traffic(mcp_repos), {})
+    print("Fetching PulseMCP traffic…")
+    visits = safe("pulsemcp", lambda: fetch_pulsemcp_visits(mcp_repos), {})
 
     payload = format_message(
         stars, prev_stars, registry, releases, prev_registry,
         glama, prev_glama, clones, prev_clones,
+        visits, prev_visits,
     )
     post_slack(payload)
 
@@ -512,6 +519,7 @@ def main() -> int:
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "stars": stars,
         "clones_14d": clones,
+        "pulsemcp_visits": visits,
         "registry": registry,
         "glama": glama,
     }

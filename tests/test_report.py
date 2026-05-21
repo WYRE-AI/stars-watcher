@@ -217,11 +217,14 @@ class TestFormatMessageIntegration(unittest.TestCase):
             prev_glama={},
             clones={},
             prev_clones={},
+            visits={},
+            prev_visits={},
         )
         blob = json.dumps(payload)
         self.assertIn("MCP Registry", blob)
         self.assertIn("Glama.ai", blob)
         self.assertIn("skipped", blob)
+        self.assertIn("PulseMCP", blob)
 
 
 if __name__ == "__main__":
