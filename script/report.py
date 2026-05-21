@@ -160,6 +160,38 @@ def version_lag(registry_ver: str, release_ver: str) -> int | None:
     return (b[1] - a[1]) or 1
 
 
+def build_registry_block(
+    mcp_repos: list[str],
+    registry: dict[str, str],
+    releases: dict[str, str],
+    prev_registry: dict[str, str],
+) -> dict:
+    """Slack section: MCP Registry coverage + version freshness."""
+    published = [r for r in mcp_repos if r in registry]
+    missing = [r for r in mcp_repos if r not in registry]
+    lines = [f"*:package: MCP Registry*  ·  {len(published)} of {len(mcp_repos)} servers published"]
+
+    for repo in published:
+        ver = registry[repo]
+        note = ""
+        if repo not in prev_registry:
+            note = "  _newly published_"
+        elif prev_registry[repo] != ver:
+            note = f"  _was {prev_registry[repo]}_"
+        rel = releases.get(repo)
+        if rel:
+            lag = version_lag(ver, rel)
+            if lag:
+                note += f"  :warning: registry `{ver}` · GH release `{rel}` — {lag} behind"
+        if note:
+            lines.append(f"• `{repo}` {ver}{note}")
+
+    if missing:
+        lines.append(f"_Not in registry:_ {', '.join('`' + m + '`' for m in missing)}")
+
+    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {

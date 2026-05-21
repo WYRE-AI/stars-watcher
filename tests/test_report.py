@@ -60,5 +60,28 @@ class TestVersionLag(unittest.TestCase):
         self.assertIsNone(report.version_lag("nightly", "2.0.0"))
 
 
+class TestRegistryBlock(unittest.TestCase):
+    def test_reports_coverage_and_missing(self):
+        block = report.build_registry_block(
+            mcp_repos=["autotask-mcp", "abnormal-mcp", "ninjaone-mcp"],
+            registry={"autotask-mcp": "2.25.0", "abnormal-mcp": "1.1.3"},
+            releases={"autotask-mcp": "2.27.1"},
+            prev_registry={"autotask-mcp": "2.25.0", "abnormal-mcp": "1.1.3"},
+        )
+        text = block["text"]["text"]
+        self.assertIn("2 of 3", text)
+        self.assertIn("ninjaone-mcp", text)
+        self.assertIn("2 behind", text)
+
+    def test_flags_newly_published(self):
+        block = report.build_registry_block(
+            mcp_repos=["autotask-mcp"],
+            registry={"autotask-mcp": "2.25.0"},
+            releases={},
+            prev_registry={},
+        )
+        self.assertIn("newly published", block["text"]["text"])
+
+
 if __name__ == "__main__":
     unittest.main()
