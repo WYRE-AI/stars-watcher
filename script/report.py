@@ -68,6 +68,51 @@ def gh_api(path: str, token: str | None = None) -> list | dict:
     return out
 
 
+REGISTRY_URL = "https://registry.modelcontextprotocol.io/v0/servers"
+
+
+def http_get_json(url: str) -> dict:
+    """GET a public JSON endpoint with no auth. Stdlib only."""
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "wyre-stars-watcher", "Accept": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read())
+
+
+def latest_registry_versions(entries: list) -> dict[str, str]:
+    """Reduce raw registry entries to {short_name: version} for isLatest rows."""
+    out: dict[str, str] = {}
+    for entry in entries:
+        server = entry.get("server", {})
+        name = server.get("name", "")
+        if "/" not in name:
+            continue
+        short = name.split("/")[-1]
+        meta = entry.get("_meta", {}).get(
+            "io.modelcontextprotocol.registry/official", {}
+        )
+        if meta.get("isLatest"):
+            out[short] = server.get("version", "?")
+    return out
+
+
+def fetch_registry_servers() -> dict[str, str]:
+    """Fetch all wyre-technology entries from the MCP Registry, cursor-paged."""
+    entries: list = []
+    cursor = ""
+    while True:
+        url = f"{REGISTRY_URL}?search=io.github.{ORG}&limit=100"
+        if cursor:
+            url += f"&cursor={cursor}"
+        data = http_get_json(url)
+        entries.extend(data.get("servers", []))
+        cursor = data.get("metadata", {}).get("next_cursor", "")
+        if not cursor:
+            break
+    return latest_registry_versions(entries)
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {
