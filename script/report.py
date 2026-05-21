@@ -28,6 +28,8 @@ from pathlib import Path
 
 ORG = "wyre-technology"
 SNAPSHOT_PATH = Path("state/snapshot.json")
+
+
 def _gh_token(admin: bool = False) -> str | None:
     """Resolve a GitHub token. admin=True returns the optional org-wide PAT
     used for cross-repo traffic data; returns None if it is not configured."""
@@ -245,6 +247,55 @@ def build_glama_block(
         lines.append(f"_Not on Glama:_ {', '.join('`' + r + '`' for r in absent)}")
 
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
+PULSEMCP_URL = "https://www.pulsemcp.com/api/v0.1/servers"
+
+
+def match_pulsemcp_visits(entries: list, mcp_repos: list[str]) -> dict[str, int]:
+    """Map PulseMCP server entries to {repo: visitorsEstimateLastFourWeeks}."""
+    repo_set = set(mcp_repos)
+    out: dict[str, int] = {}
+    for entry in entries:
+        srv = entry.get("server", entry)
+        repo_url = (srv.get("repository") or {}).get("url", "")
+        if not repo_url:
+            # v0beta flat shape uses source_code_url instead of repository.url
+            repo_url = entry.get("source_code_url", "")
+        if not repo_url:
+            continue
+        slug = repo_url.rstrip("/").split("/")[-1]
+        # Require /<ORG>/<slug> in the URL to reject same-slug repos from other orgs.
+        if f"/{ORG}/{slug}" not in repo_url:
+            continue
+        if slug not in repo_set:
+            continue
+        visits = (
+            entry.get("_meta", {})
+            .get("com.pulsemcp/server", {})
+            .get("visitorsEstimateLastFourWeeks")
+        )
+        if visits is None:
+            # v0beta fallback: package_download_count
+            visits = entry.get("package_download_count", 0)
+        out[slug] = int(visits or 0)
+    return out
+
+
+def fetch_pulsemcp_visits(mcp_repos: list[str]) -> dict[str, int]:
+    """Return {repo: visitorsEstimateLastFourWeeks} for repos indexed on PulseMCP."""
+    entries: list = []
+    cursor = ""
+    while True:
+        url = f"{PULSEMCP_URL}?search={ORG}&limit=100"
+        if cursor:
+            url += f"&cursor={cursor}"
+        data = http_get_json(url)
+        entries.extend(data.get("servers", []))
+        cursor = data.get("metadata", {}).get("next_cursor", "")
+        if not cursor:
+            break
+    return match_pulsemcp_visits(entries, mcp_repos)
 
 
 def fetch_clone_traffic(repo_names: list[str]) -> dict[str, int]:

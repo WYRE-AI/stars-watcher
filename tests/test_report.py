@@ -123,6 +123,55 @@ class TestGlamaBlock(unittest.TestCase):
         self.assertIn("newly indexed", block["text"]["text"].lower())
 
 
+PULSEMCP_FIXTURE = [
+    # Matched: wyre-technology/autotask-mcp with visitor data (sub-registry v0.1 shape)
+    {
+        "server": {
+            "name": "io.github.wyre-technology/autotask-mcp",
+            "repository": {"url": "https://github.com/wyre-technology/autotask-mcp"},
+        },
+        "_meta": {
+            "com.pulsemcp/server": {"visitorsEstimateLastFourWeeks": 1250, "isOfficial": True}
+        },
+    },
+    # Matched: trailing slash in URL is stripped correctly
+    {
+        "server": {
+            "name": "io.github.wyre-technology/xero-mcp",
+            "repository": {"url": "https://github.com/wyre-technology/xero-mcp/"},
+        },
+        "_meta": {"com.pulsemcp/server": {"visitorsEstimateLastFourWeeks": 480}},
+    },
+    # Unmatched: same slug "autotask-mcp" but belongs to a different org
+    {
+        "server": {
+            "name": "io.github.someone-else/autotask-mcp",
+            "repository": {"url": "https://github.com/someone-else/autotask-mcp"},
+        },
+        "_meta": {"com.pulsemcp/server": {"visitorsEstimateLastFourWeeks": 9999}},
+    },
+    # Missing repository field — must not raise
+    {"server": {"name": "broken-entry"}},
+]
+
+
+class TestPulseMCPMatch(unittest.TestCase):
+    def test_matched_repos_return_visitor_counts(self):
+        result = report.match_pulsemcp_visits(
+            PULSEMCP_FIXTURE, ["autotask-mcp", "xero-mcp", "qbo-mcp"]
+        )
+        self.assertEqual(result, {"autotask-mcp": 1250, "xero-mcp": 480})
+
+    def test_excludes_same_slug_from_different_org(self):
+        # someone-else/autotask-mcp at 9999 must not match wyre-technology repos
+        result = report.match_pulsemcp_visits([PULSEMCP_FIXTURE[2]], ["autotask-mcp"])
+        self.assertEqual(result, {})
+
+    def test_handles_missing_repository_field(self):
+        # Entry with no repository must not raise
+        report.match_pulsemcp_visits([PULSEMCP_FIXTURE[3]], ["autotask-mcp"])
+
+
 class TestClonesBlock(unittest.TestCase):
     def test_skipped_when_no_data(self):
         block = report.build_clones_block({}, {})
