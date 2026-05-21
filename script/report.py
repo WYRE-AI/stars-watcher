@@ -113,6 +113,53 @@ def fetch_registry_servers() -> dict[str, str]:
     return latest_registry_versions(entries)
 
 
+def mcp_repo_names(repos: dict[str, int]) -> list[str]:
+    """Names of repos that are MCP servers (end in -mcp)."""
+    return sorted(name for name in repos if name.endswith("-mcp"))
+
+
+def fetch_latest_releases(repo_names: list[str]) -> dict[str, str]:
+    """Latest published GitHub release tag per repo. Repos with no release
+    are simply absent from the result."""
+    out: dict[str, str] = {}
+    for name in repo_names:
+        try:
+            rel = gh_api(f"/repos/{ORG}/{name}/releases/latest")
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                continue  # no releases cut for this repo
+            raise
+        if isinstance(rel, dict) and rel.get("tag_name"):
+            out[name] = rel["tag_name"]
+    return out
+
+
+def _ver_tuple(version: str) -> tuple[int, ...] | None:
+    """Parse a version into a numeric tuple, or None if not comparable."""
+    core = version.lstrip("vV").split("-")[0].split("+")[0]
+    parts: list[int] = []
+    for piece in core.split("."):
+        if not piece.isdigit():
+            return None
+        parts.append(int(piece))
+    return tuple(parts) if parts else None
+
+
+def version_lag(registry_ver: str, release_ver: str) -> int | None:
+    """Versions the registry trails the GitHub release. 0 if level/ahead,
+    None if either side is not numerically comparable."""
+    a, b = _ver_tuple(registry_ver), _ver_tuple(release_ver)
+    if a is None or b is None:
+        return None
+    a = (a + (0, 0, 0))[:3]
+    b = (b + (0, 0, 0))[:3]
+    if a >= b:
+        return 0
+    if a[0] != b[0]:
+        return b[0] - a[0]
+    return (b[1] - a[1]) or 1
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {

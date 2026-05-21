@@ -40,5 +40,25 @@ class TestRegistryReduction(unittest.TestCase):
         self.assertEqual(report.latest_registry_versions([]), {})
 
 
+class TestVersionLag(unittest.TestCase):
+    def test_level_versions_have_zero_lag(self):
+        self.assertEqual(report.version_lag("2.25.0", "2.25.0"), 0)
+
+    def test_registry_ahead_is_zero(self):
+        self.assertEqual(report.version_lag("2.26.0", "2.25.0"), 0)
+
+    def test_minor_versions_behind(self):
+        self.assertEqual(report.version_lag("2.25.0", "2.27.1"), 2)
+
+    def test_major_versions_behind(self):
+        self.assertEqual(report.version_lag("1.9.0", "3.0.0"), 2)
+
+    def test_v_prefix_is_tolerated(self):
+        self.assertEqual(report.version_lag("v2.25.0", "v2.25.0"), 0)
+
+    def test_non_numeric_version_is_uncomparable(self):
+        self.assertIsNone(report.version_lag("nightly", "2.0.0"))
+
+
 if __name__ == "__main__":
     unittest.main()
