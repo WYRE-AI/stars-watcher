@@ -27,7 +27,13 @@ jobs:
 
       - name: Run report
         env:
-          GH_TOKEN: ${{ secrets.GH_API_TOKEN || secrets.GITHUB_TOKEN }}
+          # GH_TOKEN handles general org/repo listing — the workflow's built-in
+          # GITHUB_TOKEN has every permission we need for that.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GH_API_TOKEN is the fine-grained PAT used only for cross-repo
+          # traffic data (Administration:Read). Optional — clone traffic
+          # degrades to a "skipped" line when this is unset.
+          GH_API_TOKEN: ${{ secrets.GH_API_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: python script/report.py
 
