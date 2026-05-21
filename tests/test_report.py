@@ -1,5 +1,6 @@
 """Unit tests for stars-watcher report helpers. Stdlib unittest, no pip."""
 
+import json
 import os
 import sys
 import unittest
@@ -136,6 +137,25 @@ class TestClonesBlock(unittest.TestCase):
         text = block["text"]["text"]
         self.assertIn("autotask-mcp", text)
         self.assertIn("+10", text)
+
+
+class TestFormatMessageIntegration(unittest.TestCase):
+    def test_message_includes_all_sections(self):
+        payload = report.format_message(
+            curr={"autotask-mcp": 3, "conduit": 0},
+            prev={"autotask-mcp": 2, "conduit": 0},
+            registry={"autotask-mcp": "2.25.0"},
+            releases={"autotask-mcp": "2.27.1"},
+            prev_registry={},
+            glama={},
+            prev_glama={},
+            clones={},
+            prev_clones={},
+        )
+        blob = json.dumps(payload)
+        self.assertIn("MCP Registry", blob)
+        self.assertIn("Glama.ai", blob)
+        self.assertIn("skipped", blob)
 
 
 if __name__ == "__main__":

@@ -299,7 +299,17 @@ def fmt_change(delta: int) -> str:
     return f"+{delta}" if delta > 0 else str(delta)
 
 
-def format_message(curr: dict[str, int], prev: dict[str, int]) -> dict:
+def format_message(
+    curr: dict[str, int],
+    prev: dict[str, int],
+    registry: dict[str, str],
+    releases: dict[str, str],
+    prev_registry: dict[str, str],
+    glama: dict[str, str],
+    prev_glama: dict[str, str],
+    clones: dict[str, int],
+    prev_clones: dict[str, int],
+) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     total_curr = sum(curr.values())
@@ -348,6 +358,12 @@ def format_message(curr: dict[str, int], prev: dict[str, int]) -> dict:
             }
         )
 
+    mcp_repos = mcp_repo_names(curr)
+    blocks.append({"type": "divider"})
+    blocks.append(build_clones_block(clones, prev_clones))
+    blocks.append(build_registry_block(mcp_repos, registry, releases, prev_registry))
+    blocks.append(build_glama_block(mcp_repos, glama, prev_glama))
+
     blocks.append(
         {
             "type": "context",
@@ -386,6 +402,7 @@ def main() -> int:
     stars = fetch_repo_stars()
     print(f"  {len(stars)} repos, {sum(stars.values())} stars")
 
+    prev: dict = {}
     prev_stars: dict[str, int] = {}
     if SNAPSHOT_PATH.exists():
         try:
@@ -394,12 +411,40 @@ def main() -> int:
         except json.JSONDecodeError:
             pass
 
-    payload = format_message(stars, prev_stars)
+    prev_registry = prev.get("registry", {})
+    prev_glama = prev.get("glama", {})
+    prev_clones = prev.get("clones_14d", {})
+    mcp_repos = mcp_repo_names(stars)
+
+    def safe(label, fn, default):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - one source must not sink the run
+            print(f"  {label} failed: {exc}", file=sys.stderr)
+            return default
+
+    print("Fetching MCP Registry…")
+    registry = safe("registry", fetch_registry_servers, {})
+    print("Fetching GitHub releases…")
+    releases = safe("releases", lambda: fetch_latest_releases(mcp_repos), {})
+    print("Fetching Glama.ai…")
+    glama_raw = safe("glama", fetch_glama_servers, [])
+    glama = match_glama(glama_raw, mcp_repos)
+    print("Fetching clone traffic…")
+    clones = safe("clones", lambda: fetch_clone_traffic(mcp_repos), {})
+
+    payload = format_message(
+        stars, prev_stars, registry, releases, prev_registry,
+        glama, prev_glama, clones, prev_clones,
+    )
     post_slack(payload)
 
     snapshot = {
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "stars": stars,
+        "clones_14d": clones,
+        "registry": registry,
+        "glama": glama,
     }
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n")

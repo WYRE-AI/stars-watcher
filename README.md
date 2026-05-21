@@ -6,12 +6,14 @@ repo, posted to Slack.
 Runs every day at 14:00 UTC (10am ET / 9am ET depending on DST) via GitHub
 Actions.
 
-> Why only stars? npm downloads aren't queryable for our packages — we publish
-> to GitHub Packages (`npm.pkg.github.com`), which has no public download
-> counter, and the public npm registry obviously reports 0. GitHub deprecated
-> the `download_count` field on container packages in late 2022; it always
-> returns 0 now. Adoption metrics (tool calls, active orgs, top vendors) live
-> in a separate digest sourced from the gateway DB — see
+> Why no download counts? npm downloads aren't queryable for our packages — we
+> publish to GitHub Packages (`npm.pkg.github.com`), which has no public counter,
+> and the public npm registry reports 0. GitHub deprecated `download_count` on
+> container packages in late 2022. The MCP Registry and Glama.ai are catalogs,
+> not analytics services — they expose presence and version, not downloads.
+> So this digest tracks *reach and freshness* across distribution channels, not
+> downloads. Adoption metrics (tool calls, active orgs, top vendors) live in a
+> separate digest sourced from the gateway DB — see
 > `wyre-technology/gateway-adoption-watcher`.
 
 ## Setup
@@ -39,16 +41,30 @@ Actions.
 
 `script/report.py` is plain stdlib Python — no `pip install`. It hits:
 
-- `GET /orgs/wyre-technology/repos` (paginated)
-- `GET https://registry.npmjs.org/-/v1/search?text=scope:wyre-technology`
-- `GET https://api.npmjs.org/downloads/point/last-day/<pkg>` (per package)
-- `GET /orgs/wyre-technology/packages?package_type=container` (best-effort —
-  GitHub's container `download_count` is not always populated)
+- `GET /orgs/wyre-technology/repos` (paginated) — stars
+- `GET /repos/wyre-technology/<repo>/traffic/clones` — 14-day clones
+  (needs the `GH_API_TOKEN` PAT; skipped gracefully without it)
+- `GET /repos/wyre-technology/<repo>/releases/latest` — release tags
+- `GET registry.modelcontextprotocol.io/v0/servers` — MCP Registry coverage
+- `GET glama.ai/api/mcp/v1/servers` — Glama.ai directory coverage
+
+The registry and Glama sections track *reach and freshness* — whether each
+`*-mcp` server is published, current, and indexed — not download counts,
+which none of these sources expose. See
+`docs/superpowers/specs/2026-05-20-registry-reach-tracking-design.md`.
 
 The result is written to `state/snapshot.json` and diffed against the previous
 day's snapshot. Deltas, top movers, and totals are formatted as Slack Block Kit
 and POSTed to the webhook. The new snapshot is then committed back so tomorrow
 has something to diff against.
+
+## Tests
+
+Stdlib `unittest`, no pip:
+
+```
+python -m unittest discover -s tests -v
+```
 
 ## Costs
 
