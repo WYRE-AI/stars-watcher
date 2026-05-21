@@ -11,11 +11,12 @@ Actions.
 > and the public npm registry reports 0. GitHub deprecated `download_count` on
 > container packages in late 2022. The MCP Registry and Glama.ai are catalogs,
 > not analytics services — they expose presence and version, not downloads.
-> So this digest tracks *reach and freshness* across distribution channels,
-> plus *popularity* via PulseMCP (which exposes `visitorsEstimateLastFourWeeks`,
-> the first traffic-grade signal available across our MCP servers). Adoption
-> metrics (tool calls, active orgs, top vendors) live in a separate digest
-> sourced from the gateway DB — see `wyre-technology/gateway-adoption-watcher`.
+> So this digest tracks *reach and freshness* across distribution channels, not
+> downloads. PulseMCP adds the first traffic-grade popularity signal: estimated
+> visitors over the last four weeks per server, sourced from PulseMCP's public
+> REST API. Adoption metrics (tool calls, active orgs, top vendors) live in a
+> separate digest sourced from the gateway DB — see
+> `wyre-technology/gateway-adoption-watcher`.
 
 ## Setup
 
@@ -46,15 +47,16 @@ Actions.
 - `GET /repos/wyre-technology/<repo>/traffic/clones` — 14-day clones
   (needs the `GH_API_TOKEN` PAT; skipped gracefully without it)
 - `GET /repos/wyre-technology/<repo>/releases/latest` — release tags
-- `GET www.pulsemcp.com/api/v0.1/servers` — PulseMCP 4-week visitor estimates
-  per `*-mcp` server (popularity signal; renders empty until servers are indexed)
 - `GET registry.modelcontextprotocol.io/v0/servers` — MCP Registry coverage
 - `GET glama.ai/api/mcp/v1/servers` — Glama.ai directory coverage
+- `GET www.pulsemcp.com/api/v0.1/servers` — PulseMCP estimated visitors per
+  server over the last four weeks (popularity/traffic signal; public API,
+  no auth required)
 
-PulseMCP is the popularity/traffic signal — it surfaces which `*-mcp` servers
-are actually being discovered and used — while the Registry and Glama sections
-track *reach and freshness* (whether each server is published, current, and
-indexed). See
+The registry and Glama sections track *reach and freshness* — whether each
+`*-mcp` server is published, current, and indexed. PulseMCP is the
+*popularity* signal: it measures actual estimated visitor traffic, which none
+of the other sources expose. See
 `docs/superpowers/specs/2026-05-20-registry-reach-tracking-design.md`.
 
 The result is written to `state/snapshot.json` and diffed against the previous
