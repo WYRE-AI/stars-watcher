@@ -192,6 +192,42 @@ def build_registry_block(
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
 
 
+GLAMA_URL = "https://glama.ai/api/mcp/v1/servers"
+
+
+def match_glama(servers: list, mcp_repos: list[str]) -> dict[str, str]:
+    """Map Glama server objects to {repo_name: glama_id} by repository URL."""
+    repo_set = set(mcp_repos)
+    out: dict[str, str] = {}
+    for srv in servers:
+        url = (srv.get("repository") or {}).get("url", "")
+        if not url:
+            continue
+        slug = url.rstrip("/").split("/")[-1]
+        if slug in repo_set:
+            out[slug] = srv.get("id", "?")
+    return out
+
+
+def fetch_glama_servers() -> list:
+    """Fetch all Glama MCP servers matching 'wyre', following cursor pages."""
+    servers: list = []
+    cursor = ""
+    while True:
+        url = f"{GLAMA_URL}?query=wyre"
+        if cursor:
+            url += f"&after={cursor}"
+        data = http_get_json(url)
+        servers.extend(data.get("servers", []))
+        page = data.get("pageInfo", {})
+        if not page.get("hasNextPage"):
+            break
+        cursor = page.get("endCursor", "")
+        if not cursor:
+            break
+    return servers
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {

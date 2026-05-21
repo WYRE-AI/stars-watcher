@@ -83,5 +83,23 @@ class TestRegistryBlock(unittest.TestCase):
         self.assertIn("newly published", block["text"]["text"])
 
 
+GLAMA_FIXTURE = [
+    {"id": "yyxqea2oqs", "repository": {"url": "https://github.com/wyre-technology/xero-mcp"}},
+    {"id": "myg2ycwb1g", "repository": {"url": "https://github.com/wyre-technology/hudu-mcp/"}},
+    {"id": "zzz", "repository": {"url": "https://github.com/someone-else/other-mcp"}},
+    {"id": "nourl"},
+]
+
+
+class TestGlamaMatch(unittest.TestCase):
+    def test_matches_known_repos_only(self):
+        result = report.match_glama(GLAMA_FIXTURE, ["xero-mcp", "hudu-mcp", "qbo-mcp"])
+        self.assertEqual(result, {"xero-mcp": "yyxqea2oqs", "hudu-mcp": "myg2ycwb1g"})
+
+    def test_handles_missing_repository_field(self):
+        # The {"id": "nourl"} entry must not raise.
+        report.match_glama(GLAMA_FIXTURE, ["xero-mcp"])
+
+
 if __name__ == "__main__":
     unittest.main()
