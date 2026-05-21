@@ -172,6 +172,23 @@ class TestPulseMCPMatch(unittest.TestCase):
         report.match_pulsemcp_visits([PULSEMCP_FIXTURE[3]], ["autotask-mcp"])
 
 
+class TestPulseMCPBlock(unittest.TestCase):
+    def test_skipped_when_no_data(self):
+        block = report.build_pulsemcp_block({}, {})
+        self.assertEqual(block["type"], "context")
+        self.assertIn("skipped", block["elements"][0]["text"])
+
+    def test_ranks_top_visits_with_deltas(self):
+        block = report.build_pulsemcp_block(
+            visits={"autotask-mcp": 1250, "xero-mcp": 480},
+            prev_visits={"autotask-mcp": 1000, "xero-mcp": 480},
+        )
+        text = block["text"]["text"]
+        self.assertIn("autotask-mcp", text)
+        self.assertIn("+250", text)
+        self.assertIn("1250", text)
+
+
 class TestClonesBlock(unittest.TestCase):
     def test_skipped_when_no_data(self):
         block = report.build_clones_block({}, {})

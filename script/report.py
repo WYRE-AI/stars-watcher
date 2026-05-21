@@ -298,6 +298,24 @@ def fetch_pulsemcp_visits(mcp_repos: list[str]) -> dict[str, int]:
     return match_pulsemcp_visits(entries, mcp_repos)
 
 
+def build_pulsemcp_block(visits: dict[str, int], prev_visits: dict[str, int]) -> dict:
+    """Slack block: top repos by PulseMCP 4-week visitor estimate, with deltas."""
+    if not visits:
+        return {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": "_PulseMCP traffic skipped — no servers indexed._"}
+            ],
+        }
+    ranked = sorted(visits.items(), key=lambda kv: -kv[1])[:10]
+    lines = ["*:zap: PulseMCP traffic (4-week visitors)*"]
+    for name, count in ranked:
+        delta = count - prev_visits.get(name, count)
+        suffix = f" ({fmt_change(delta)})" if delta else ""
+        lines.append(f"• `{name}` {count}{suffix}")
+    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
 def fetch_clone_traffic(repo_names: list[str]) -> dict[str, int]:
     """14-day clone counts per repo. Requires the GH_API_TOKEN PAT with
     Administration:Read. Returns {} (caller renders 'skipped') if the token
