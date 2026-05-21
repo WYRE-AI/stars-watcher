@@ -28,8 +28,6 @@ from pathlib import Path
 
 ORG = "wyre-technology"
 SNAPSHOT_PATH = Path("state/snapshot.json")
-
-
 def _gh_token(admin: bool = False) -> str | None:
     """Resolve a GitHub token. admin=True returns the optional org-wide PAT
     used for cross-repo traffic data; returns None if it is not configured."""
@@ -249,73 +247,6 @@ def build_glama_block(
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
 
 
-PULSEMCP_URL = "https://www.pulsemcp.com/api/v0.1/servers"
-
-
-def match_pulsemcp_visits(entries: list, mcp_repos: list[str]) -> dict[str, int]:
-    """Map PulseMCP server entries to {repo: visitorsEstimateLastFourWeeks}."""
-    repo_set = set(mcp_repos)
-    out: dict[str, int] = {}
-    for entry in entries:
-        srv = entry.get("server", entry)
-        repo_url = (srv.get("repository") or {}).get("url", "")
-        if not repo_url:
-            # v0beta flat shape uses source_code_url instead of repository.url
-            repo_url = entry.get("source_code_url", "")
-        if not repo_url:
-            continue
-        slug = repo_url.rstrip("/").split("/")[-1]
-        # Require /<ORG>/<slug> in the URL to reject same-slug repos from other orgs.
-        if f"/{ORG}/{slug}" not in repo_url:
-            continue
-        if slug not in repo_set:
-            continue
-        visits = (
-            entry.get("_meta", {})
-            .get("com.pulsemcp/server", {})
-            .get("visitorsEstimateLastFourWeeks")
-        )
-        if visits is None:
-            # v0beta fallback: package_download_count
-            visits = entry.get("package_download_count", 0)
-        out[slug] = int(visits or 0)
-    return out
-
-
-def fetch_pulsemcp_visits(mcp_repos: list[str]) -> dict[str, int]:
-    """Return {repo: visitorsEstimateLastFourWeeks} for repos indexed on PulseMCP."""
-    entries: list = []
-    cursor = ""
-    while True:
-        url = f"{PULSEMCP_URL}?search={ORG}&limit=100"
-        if cursor:
-            url += f"&cursor={cursor}"
-        data = http_get_json(url)
-        entries.extend(data.get("servers", []))
-        cursor = data.get("metadata", {}).get("next_cursor", "")
-        if not cursor:
-            break
-    return match_pulsemcp_visits(entries, mcp_repos)
-
-
-def build_pulsemcp_block(visits: dict[str, int], prev_visits: dict[str, int]) -> dict:
-    """Slack block: top repos by PulseMCP 4-week visitor estimate, with deltas."""
-    if not visits:
-        return {
-            "type": "context",
-            "elements": [
-                {"type": "mrkdwn", "text": "_PulseMCP traffic skipped — no servers indexed._"}
-            ],
-        }
-    ranked = sorted(visits.items(), key=lambda kv: -kv[1])[:10]
-    lines = ["*:zap: PulseMCP traffic (4-week visitors)*"]
-    for name, count in ranked:
-        delta = count - prev_visits.get(name, count)
-        suffix = f" ({fmt_change(delta)})" if delta else ""
-        lines.append(f"• `{name}` {count}{suffix}")
-    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
-
-
 def fetch_clone_traffic(repo_names: list[str]) -> dict[str, int]:
     """14-day clone counts per repo. Requires the GH_API_TOKEN PAT with
     Administration:Read. Returns {} (caller renders 'skipped') if the token
@@ -355,6 +286,32 @@ def build_clones_block(clones: dict[str, int], prev_clones: dict[str, int]) -> d
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
 
 
+PULSEMCP_URL = "https://www.pulsemcp.com/api/v0.1/servers"
+
+
+def match_pulsemcp(servers: list, mcp_repos: list[str]) -> dict[str, int]:
+    """Map PulseMCP server objects to {repo_name: visitors_4w} by sourceCodeUrl.
+
+    Matches only entries whose sourceCodeUrl contains the wyre-technology org
+    path to avoid false positives from other orgs with identically-named repos.
+    The visitor count comes from stats.visitorsEstimateLastFourWeeks.
+    """
+    repo_set = set(mcp_repos)
+    out: dict[str, int] = {}
+    for srv in servers:
+        source_url = srv.get("sourceCodeUrl") or (srv.get("repository") or {}).get("url", "")
+        if not source_url or ORG not in source_url:
+            continue
+        slug = source_url.rstrip("/").split("/")[-1]
+        if slug not in repo_set:
+            continue
+        stats = srv.get("stats") or {}
+        visits = stats.get("visitorsEstimateLastFourWeeks")
+        if visits is not None:
+            out[slug] = int(visits)
+    return out
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {
@@ -378,8 +335,6 @@ def format_message(
     prev_glama: dict[str, str],
     clones: dict[str, int],
     prev_clones: dict[str, int],
-    visits: dict[str, int],
-    prev_visits: dict[str, int],
 ) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -432,7 +387,6 @@ def format_message(
     mcp_repos = mcp_repo_names(curr)
     blocks.append({"type": "divider"})
     blocks.append(build_clones_block(clones, prev_clones))
-    blocks.append(build_pulsemcp_block(visits, prev_visits))
     blocks.append(build_registry_block(mcp_repos, registry, releases, prev_registry))
     blocks.append(build_glama_block(mcp_repos, glama, prev_glama))
 
@@ -486,7 +440,6 @@ def main() -> int:
     prev_registry = prev.get("registry", {})
     prev_glama = prev.get("glama", {})
     prev_clones = prev.get("clones_14d", {})
-    prev_visits = prev.get("pulsemcp_visits", {})
     mcp_repos = mcp_repo_names(stars)
 
     def safe(label, fn, default):
@@ -505,13 +458,10 @@ def main() -> int:
     glama = match_glama(glama_raw, mcp_repos)
     print("Fetching clone traffic…")
     clones = safe("clones", lambda: fetch_clone_traffic(mcp_repos), {})
-    print("Fetching PulseMCP traffic…")
-    visits = safe("pulsemcp", lambda: fetch_pulsemcp_visits(mcp_repos), {})
 
     payload = format_message(
         stars, prev_stars, registry, releases, prev_registry,
         glama, prev_glama, clones, prev_clones,
-        visits, prev_visits,
     )
     post_slack(payload)
 
@@ -519,7 +469,6 @@ def main() -> int:
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "stars": stars,
         "clones_14d": clones,
-        "pulsemcp_visits": visits,
         "registry": registry,
         "glama": glama,
     }

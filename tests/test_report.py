@@ -123,72 +123,6 @@ class TestGlamaBlock(unittest.TestCase):
         self.assertIn("newly indexed", block["text"]["text"].lower())
 
 
-PULSEMCP_FIXTURE = [
-    # Matched: wyre-technology/autotask-mcp with visitor data (sub-registry v0.1 shape)
-    {
-        "server": {
-            "name": "io.github.wyre-technology/autotask-mcp",
-            "repository": {"url": "https://github.com/wyre-technology/autotask-mcp"},
-        },
-        "_meta": {
-            "com.pulsemcp/server": {"visitorsEstimateLastFourWeeks": 1250, "isOfficial": True}
-        },
-    },
-    # Matched: trailing slash in URL is stripped correctly
-    {
-        "server": {
-            "name": "io.github.wyre-technology/xero-mcp",
-            "repository": {"url": "https://github.com/wyre-technology/xero-mcp/"},
-        },
-        "_meta": {"com.pulsemcp/server": {"visitorsEstimateLastFourWeeks": 480}},
-    },
-    # Unmatched: same slug "autotask-mcp" but belongs to a different org
-    {
-        "server": {
-            "name": "io.github.someone-else/autotask-mcp",
-            "repository": {"url": "https://github.com/someone-else/autotask-mcp"},
-        },
-        "_meta": {"com.pulsemcp/server": {"visitorsEstimateLastFourWeeks": 9999}},
-    },
-    # Missing repository field — must not raise
-    {"server": {"name": "broken-entry"}},
-]
-
-
-class TestPulseMCPMatch(unittest.TestCase):
-    def test_matched_repos_return_visitor_counts(self):
-        result = report.match_pulsemcp_visits(
-            PULSEMCP_FIXTURE, ["autotask-mcp", "xero-mcp", "qbo-mcp"]
-        )
-        self.assertEqual(result, {"autotask-mcp": 1250, "xero-mcp": 480})
-
-    def test_excludes_same_slug_from_different_org(self):
-        # someone-else/autotask-mcp at 9999 must not match wyre-technology repos
-        result = report.match_pulsemcp_visits([PULSEMCP_FIXTURE[2]], ["autotask-mcp"])
-        self.assertEqual(result, {})
-
-    def test_handles_missing_repository_field(self):
-        # Entry with no repository must not raise
-        report.match_pulsemcp_visits([PULSEMCP_FIXTURE[3]], ["autotask-mcp"])
-
-
-class TestPulseMCPBlock(unittest.TestCase):
-    def test_skipped_when_no_data(self):
-        block = report.build_pulsemcp_block({}, {})
-        self.assertEqual(block["type"], "context")
-        self.assertIn("skipped", block["elements"][0]["text"])
-
-    def test_ranks_top_visits_with_deltas(self):
-        block = report.build_pulsemcp_block(
-            visits={"autotask-mcp": 1250, "xero-mcp": 480},
-            prev_visits={"autotask-mcp": 1000, "xero-mcp": 480},
-        )
-        text = block["text"]["text"]
-        self.assertIn("autotask-mcp", text)
-        self.assertIn("+250", text)
-        self.assertIn("1250", text)
-
-
 class TestClonesBlock(unittest.TestCase):
     def test_skipped_when_no_data(self):
         block = report.build_clones_block({}, {})
@@ -205,6 +139,45 @@ class TestClonesBlock(unittest.TestCase):
         self.assertIn("+10", text)
 
 
+PULSEMCP_FIXTURE = [
+    {
+        "sourceCodeUrl": "https://github.com/wyre-technology/autotask-mcp",
+        "stats": {"visitorsEstimateLastFourWeeks": 850},
+    },
+    {
+        "sourceCodeUrl": "https://github.com/wyre-technology/qbo-mcp/",
+        "stats": {"visitorsEstimateLastFourWeeks": 120},
+    },
+    {
+        # different org — must not match even though slug matches a wyre repo
+        "sourceCodeUrl": "https://github.com/someone-else/autotask-mcp",
+        "stats": {"visitorsEstimateLastFourWeeks": 999},
+    },
+    {
+        # missing sourceCodeUrl entirely — must not raise
+        "stats": {"visitorsEstimateLastFourWeeks": 50},
+    },
+]
+
+
+class TestPulseMCPMatch(unittest.TestCase):
+    def test_matched_repos(self):
+        result = report.match_pulsemcp(
+            PULSEMCP_FIXTURE, ["autotask-mcp", "qbo-mcp", "ninjaone-mcp"]
+        )
+        self.assertEqual(result, {"autotask-mcp": 850, "qbo-mcp": 120})
+
+    def test_unmatched_repos_absent(self):
+        result = report.match_pulsemcp(
+            PULSEMCP_FIXTURE, ["autotask-mcp", "qbo-mcp", "ninjaone-mcp"]
+        )
+        self.assertNotIn("ninjaone-mcp", result)
+
+    def test_handles_missing_repository_field(self):
+        # entry with no sourceCodeUrl must not raise
+        report.match_pulsemcp(PULSEMCP_FIXTURE, ["autotask-mcp"])
+
+
 class TestFormatMessageIntegration(unittest.TestCase):
     def test_message_includes_all_sections(self):
         payload = report.format_message(
@@ -217,14 +190,11 @@ class TestFormatMessageIntegration(unittest.TestCase):
             prev_glama={},
             clones={},
             prev_clones={},
-            visits={},
-            prev_visits={},
         )
         blob = json.dumps(payload)
         self.assertIn("MCP Registry", blob)
         self.assertIn("Glama.ai", blob)
         self.assertIn("skipped", blob)
-        self.assertIn("PulseMCP", blob)
 
 
 if __name__ == "__main__":
