@@ -28,11 +28,15 @@ from pathlib import Path
 
 ORG = "wyre-technology"
 SNAPSHOT_PATH = Path("state/snapshot.json")
-GH_TOKEN = os.environ.get("GH_TOKEN") or os.environ["GITHUB_TOKEN"]
-SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+def _gh_token(admin: bool = False) -> str | None:
+    """Resolve a GitHub token. admin=True returns the optional org-wide PAT
+    used for cross-repo traffic data; returns None if it is not configured."""
+    if admin:
+        return os.environ.get("GH_API_TOKEN") or None
+    return os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
 
 
-def gh_api(path: str) -> list | dict:
+def gh_api(path: str, token: str | None = None) -> list | dict:
     """Paginated GitHub REST call. Follows Link headers for `?page=` results."""
     out: list = []
     url = f"https://api.github.com{path}"
@@ -42,7 +46,7 @@ def gh_api(path: str) -> list | dict:
         req = urllib.request.Request(
             url,
             headers={
-                "Authorization": f"Bearer {GH_TOKEN}",
+                "Authorization": f"Bearer {token or _gh_token()}",
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": "2022-11-28",
                 "User-Agent": "wyre-stars-watcher",
@@ -142,12 +146,13 @@ def format_message(curr: dict[str, int], prev: dict[str, int]) -> dict:
 
 
 def post_slack(payload: dict) -> None:
-    if not SLACK_WEBHOOK:
+    webhook = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+    if not webhook:
         print("SLACK_WEBHOOK_URL not set — printing payload to stdout:", file=sys.stderr)
         print(json.dumps(payload, indent=2))
         return
     req = urllib.request.Request(
-        SLACK_WEBHOOK,
+        webhook,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
