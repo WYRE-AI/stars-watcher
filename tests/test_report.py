@@ -139,6 +139,62 @@ class TestClonesBlock(unittest.TestCase):
         self.assertIn("+10", text)
 
 
+PULSEMCP_FIXTURE = [
+    {
+        "sourceCodeUrl": "https://github.com/wyre-technology/autotask-mcp",
+        "stats": {"visitorsEstimateLastFourWeeks": 850},
+    },
+    {
+        "sourceCodeUrl": "https://github.com/wyre-technology/qbo-mcp/",
+        "stats": {"visitorsEstimateLastFourWeeks": 120},
+    },
+    {
+        # different org — must not match even though slug matches a wyre repo
+        "sourceCodeUrl": "https://github.com/someone-else/autotask-mcp",
+        "stats": {"visitorsEstimateLastFourWeeks": 999},
+    },
+    {
+        # missing sourceCodeUrl entirely — must not raise
+        "stats": {"visitorsEstimateLastFourWeeks": 50},
+    },
+]
+
+
+class TestPulseMCPMatch(unittest.TestCase):
+    def test_matched_repos(self):
+        result = report.match_pulsemcp(
+            PULSEMCP_FIXTURE, ["autotask-mcp", "qbo-mcp", "ninjaone-mcp"]
+        )
+        self.assertEqual(result, {"autotask-mcp": 850, "qbo-mcp": 120})
+
+    def test_unmatched_repos_absent(self):
+        result = report.match_pulsemcp(
+            PULSEMCP_FIXTURE, ["autotask-mcp", "qbo-mcp", "ninjaone-mcp"]
+        )
+        self.assertNotIn("ninjaone-mcp", result)
+
+    def test_handles_missing_repository_field(self):
+        # entry with no sourceCodeUrl must not raise
+        report.match_pulsemcp(PULSEMCP_FIXTURE, ["autotask-mcp"])
+
+
+class TestPulseMCPBlock(unittest.TestCase):
+    def test_skipped_when_no_data(self):
+        block = report.build_pulsemcp_block({}, {})
+        self.assertEqual(block["type"], "context")
+        self.assertIn("PulseMCP", block["elements"][0]["text"])
+
+    def test_ranks_top_visits_with_deltas(self):
+        block = report.build_pulsemcp_block(
+            visits={"autotask-mcp": 850, "qbo-mcp": 120},
+            prev_visits={"autotask-mcp": 800, "qbo-mcp": 120},
+        )
+        text = block["text"]["text"]
+        self.assertIn("autotask-mcp", text)
+        self.assertIn("+50", text)
+        self.assertIn("qbo-mcp", text)
+
+
 class TestFormatMessageIntegration(unittest.TestCase):
     def test_message_includes_all_sections(self):
         payload = report.format_message(
@@ -151,11 +207,14 @@ class TestFormatMessageIntegration(unittest.TestCase):
             prev_glama={},
             clones={},
             prev_clones={},
+            visits={},
+            prev_visits={},
         )
         blob = json.dumps(payload)
         self.assertIn("MCP Registry", blob)
         self.assertIn("Glama.ai", blob)
         self.assertIn("skipped", blob)
+        self.assertIn("PulseMCP", blob)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,8 @@ from pathlib import Path
 
 ORG = "wyre-technology"
 SNAPSHOT_PATH = Path("state/snapshot.json")
+
+
 def _gh_token(admin: bool = False) -> str | None:
     """Resolve a GitHub token. admin=True returns the optional org-wide PAT
     used for cross-repo traffic data; returns None if it is not configured."""
@@ -286,6 +288,81 @@ def build_clones_block(clones: dict[str, int], prev_clones: dict[str, int]) -> d
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
 
 
+PULSEMCP_URL = "https://www.pulsemcp.com/api/v0.1/servers"
+
+
+def match_pulsemcp(servers: list, mcp_repos: list[str]) -> dict[str, int]:
+    """Map PulseMCP server objects to {repo_name: visitors_4w} by sourceCodeUrl.
+
+    Matches only entries whose sourceCodeUrl contains the wyre-technology org
+    path to avoid false positives from other orgs with identically-named repos.
+    The visitor count comes from stats.visitorsEstimateLastFourWeeks.
+    """
+    repo_set = set(mcp_repos)
+    out: dict[str, int] = {}
+    for srv in servers:
+        source_url = srv.get("sourceCodeUrl") or (srv.get("repository") or {}).get("url", "")
+        if not source_url or ORG not in source_url:
+            continue
+        slug = source_url.rstrip("/").split("/")[-1]
+        if slug not in repo_set:
+            continue
+        stats = srv.get("stats") or {}
+        visits = stats.get("visitorsEstimateLastFourWeeks")
+        if visits is not None:
+            out[slug] = int(visits)
+    return out
+
+
+def fetch_pulsemcp_visits(mcp_repos: list[str]) -> dict[str, int]:
+    """Fetch visitor estimates from PulseMCP for wyre-technology MCP servers.
+
+    Queries PULSEMCP_URL with q=wyre-technology, follows offset-based pages,
+    and passes the raw server list through match_pulsemcp for filtering.
+    No auth is required; a descriptive User-Agent is sent per PulseMCP docs.
+    Returns {} on network failure (caller uses safe() wrapper).
+    """
+    servers: list = []
+    offset = 0
+    count = 100
+    while True:
+        url = f"{PULSEMCP_URL}?q={ORG}&count={count}&offset={offset}"
+        data = http_get_json(url)
+        batch = data.get("servers", [])
+        servers.extend(batch)
+        total = data.get("metadata", {}).get("total", 0)
+        offset += len(batch)
+        if not batch or offset >= total:
+            break
+    return match_pulsemcp(servers, mcp_repos)
+
+
+def build_pulsemcp_block(visits: dict[str, int], prev_visits: dict[str, int]) -> dict:
+    """Slack block: top MCP repos by PulseMCP visitor estimate (4-week window).
+
+    Mirrors build_clones_block: top-10 ranking with day-over-day deltas via
+    fmt_change(). Renders a graceful context line when no data is available
+    (servers not yet indexed or fetch skipped via safe() wrapper).
+    """
+    if not visits:
+        return {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "_PulseMCP traffic skipped — no data or servers not yet indexed._",
+                }
+            ],
+        }
+    ranked = sorted(visits.items(), key=lambda kv: -kv[1])[:10]
+    lines = ["*:zap: PulseMCP traffic (4w visitors)*"]
+    for name, count in ranked:
+        delta = count - prev_visits.get(name, count)
+        suffix = f" ({fmt_change(delta)})" if delta else ""
+        lines.append(f"• `{name}` {count}{suffix}")
+    return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+
+
 def fetch_repo_stars() -> dict[str, int]:
     repos = gh_api(f"/orgs/{ORG}/repos?type=all")
     return {
@@ -309,6 +386,8 @@ def format_message(
     prev_glama: dict[str, str],
     clones: dict[str, int],
     prev_clones: dict[str, int],
+    visits: dict[str, int],
+    prev_visits: dict[str, int],
 ) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -361,6 +440,7 @@ def format_message(
     mcp_repos = mcp_repo_names(curr)
     blocks.append({"type": "divider"})
     blocks.append(build_clones_block(clones, prev_clones))
+    blocks.append(build_pulsemcp_block(visits, prev_visits))
     blocks.append(build_registry_block(mcp_repos, registry, releases, prev_registry))
     blocks.append(build_glama_block(mcp_repos, glama, prev_glama))
 
@@ -414,6 +494,7 @@ def main() -> int:
     prev_registry = prev.get("registry", {})
     prev_glama = prev.get("glama", {})
     prev_clones = prev.get("clones_14d", {})
+    prev_visits = prev.get("pulsemcp_visits", {})
     mcp_repos = mcp_repo_names(stars)
 
     def safe(label, fn, default):
@@ -432,10 +513,12 @@ def main() -> int:
     glama = match_glama(glama_raw, mcp_repos)
     print("Fetching clone traffic…")
     clones = safe("clones", lambda: fetch_clone_traffic(mcp_repos), {})
+    print("Fetching PulseMCP traffic…")
+    visits = safe("pulsemcp", lambda: fetch_pulsemcp_visits(mcp_repos), {})
 
     payload = format_message(
         stars, prev_stars, registry, releases, prev_registry,
-        glama, prev_glama, clones, prev_clones,
+        glama, prev_glama, clones, prev_clones, visits, prev_visits,
     )
     post_slack(payload)
 
@@ -445,6 +528,7 @@ def main() -> int:
         "clones_14d": clones,
         "registry": registry,
         "glama": glama,
+        "pulsemcp_visits": visits,
     }
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
