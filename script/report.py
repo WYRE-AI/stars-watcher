@@ -99,19 +99,28 @@ def latest_registry_versions(entries: list) -> dict[str, str]:
     return out
 
 
-def fetch_registry_servers() -> dict[str, str]:
-    """Fetch all wyre-technology entries from the MCP Registry, cursor-paged."""
+def fetch_registry_servers(mcp_repos: list[str]) -> dict[str, str]:
+    """Latest published MCP Registry version per repo, queried one repo at a time.
+
+    The bulk ``?search=io.github.wyre-technology`` listing caps at 100 entries and
+    does not page (``next_cursor`` never advances), and every server *version* is
+    a separate entry — so once the fleet had >100 version-entries, servers past
+    the cap silently dropped out and looked unpublished. A per-repo lookup is
+    bounded by the repo count and immune to that cap.
+    """
     entries: list = []
-    cursor = ""
-    while True:
-        url = f"{REGISTRY_URL}?search=io.github.{ORG}&limit=100"
-        if cursor:
-            url += f"&cursor={cursor}"
-        data = http_get_json(url)
-        entries.extend(data.get("servers", []))
-        cursor = data.get("metadata", {}).get("next_cursor", "")
-        if not cursor:
-            break
+    for repo in mcp_repos:
+        full = f"io.github.{ORG}/{repo}"
+        try:
+            data = http_get_json(f"{REGISTRY_URL}?search={full}")
+        except Exception as exc:  # noqa: BLE001 - one repo must not sink the block
+            print(f"  registry {repo} failed: {exc}", file=sys.stderr)
+            continue
+        entries.extend(
+            e
+            for e in data.get("servers", [])
+            if e.get("server", {}).get("name", "") == full
+        )
     return latest_registry_versions(entries)
 
 
@@ -505,7 +514,7 @@ def main() -> int:
             return default
 
     print("Fetching MCP Registry…")
-    registry = safe("registry", fetch_registry_servers, {})
+    registry = safe("registry", lambda: fetch_registry_servers(mcp_repos), {})
     print("Fetching GitHub releases…")
     releases = safe("releases", lambda: fetch_latest_releases(mcp_repos), {})
     print("Fetching Glama.ai…")
