@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-06-08T15:10:24.789725+00:00",
+  "captured_at": "2026-06-09T15:19:03.308912+00:00",
   "clones_14d": {
     "abnormal-mcp": 194,
     "action1-mcp": 385,
@@ -103,7 +103,7 @@
     "action1-mcp": "1.0.4",
     "alternative-payments-mcp": "1.0.1",
     "atera-mcp": "1.4.0",
-    "autotask-mcp": "2.28.3",
+    "autotask-mcp": "2.28.5",
     "auvik-mcp": "1.0.1",
     "avanan-legacy-mcp": "1.0.1",
     "avanan-mcp": "2.1.1",
@@ -167,7 +167,7 @@
     "blackpoint-mcp": 0,
     "blumira-cli": 0,
     "blumira-mcp": 0,
-    "cipp-mcp": 4,
+    "cipp-mcp": 5,
     "claudeCISBenchmarks": 0,
     "connectwise-automate-mcp": 0,
     "connectwise-manage-mcp": 7,
@@ -204,7 +204,7 @@
     "mcpgw-cli": 0,
     "mimecast-cli": 0,
     "mimecast-mcp": 0,
-    "msp-claude-plugins": 25,
+    "msp-claude-plugins": 27,
     "ninjaone-cli": 1,
     "ninjaone-mcp": 18,
     "node-alternative-payments": 0,
