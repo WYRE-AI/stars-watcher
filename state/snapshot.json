@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-06-11T15:13:43.196923+00:00",
+  "captured_at": "2026-06-12T15:04:39.396817+00:00",
   "clones_14d": {
     "abnormal-mcp": 116,
     "action1-mcp": 179,
@@ -111,9 +111,9 @@
     "blumira-mcp": "1.2.4",
     "cipp-mcp": "1.4.2",
     "connectwise-automate-mcp": "1.5.6",
-    "connectwise-manage-mcp": "1.7.0",
+    "connectwise-manage-mcp": "1.7.1",
     "crewhu-mcp": "1.0.4",
-    "datto-bcdr-mcp": "1.0.7",
+    "datto-bcdr-mcp": "1.0.8",
     "datto-rmm-mcp": "1.4.8",
     "datto-saas-protection-mcp": "2.0.5",
     "domotz-mcp": "1.1.4",
