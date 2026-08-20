@@ -2,7 +2,7 @@
 
 Pulls stargazer counts for every non-archived repo in the wyre-technology
 org, diffs against state/snapshot.json (committed each run), and posts a
-Slack Block Kit message to the SLACK_WEBHOOK_URL secret.
+Slack Block Kit message to #github-activity in the WYRE AI workspace via the shared WYRE Notifier bot (SLACK_BOT_TOKEN + SLACK_CHANNEL_ID).
 
 npm and GHCR were stripped from this digest because:
   - WYRE publishes npm packages to GitHub Packages (npm.pkg.github.com),
@@ -469,21 +469,35 @@ def format_message(
 
 
 def post_slack(payload: dict) -> None:
-    webhook = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
-    if not webhook:
-        print("SLACK_WEBHOOK_URL not set — printing payload to stdout:", file=sys.stderr)
+    # Posts as the shared "WYRE Notifier" Slack app (wyre-technology/.github
+    # slack-app/notifier) — org-level SLACK_NOTIFIER_BOT_TOKEN secret, WYRE AI
+    # workspace, #github-activity.
+    token = os.environ.get("SLACK_BOT_TOKEN", "").strip()
+    channel = os.environ.get("SLACK_CHANNEL_ID", "").strip()
+    if not token or not channel:
+        print("SLACK_BOT_TOKEN/SLACK_CHANNEL_ID not set — printing payload to stdout:", file=sys.stderr)
         print(json.dumps(payload, indent=2))
         return
+    body = {
+        "channel": channel,
+        "text": "Daily stars digest",
+        "username": "Stars Watcher",
+        "icon_emoji": ":star:",
+        **payload,
+    }
     req = urllib.request.Request(
-        webhook,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        "https://slack.com/api/chat.postMessage",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
-        body = resp.read().decode().strip()
-        if body and body != "ok":
-            print(f"Slack response: {body}", file=sys.stderr)
+        result = json.loads(resp.read())
+        if not result.get("ok"):
+            sys.exit(f"chat.postMessage failed: {result.get('error')}")
 
 
 def main() -> int:

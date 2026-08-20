@@ -34,7 +34,9 @@ jobs:
           # traffic data (Administration:Read). Optional — clone traffic
           # degrades to a "skipped" line when this is unset.
           GH_API_TOKEN: ${{ secrets.GH_API_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          # WYRE Notifier app (org-level secret) → #github-activity, WYRE AI workspace
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_NOTIFIER_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: C0BR5S8F6BZ
         run: python script/report.py
 
       - name: Commit updated snapshot

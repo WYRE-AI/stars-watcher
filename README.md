@@ -20,21 +20,18 @@ Actions.
 
 ## Setup
 
-1. Create a Slack incoming webhook for the channel you want the digest in.
-   Slack workspace admin → `https://api.slack.com/apps` → your app → Incoming
-   Webhooks → Add New Webhook to Workspace → pick channel → copy the URL.
+1. Delivery uses the shared **WYRE Notifier** Slack app (WYRE AI workspace,
+   manifest in `wyre-technology/.github` → `slack-app/notifier/`) via the
+   org-level `SLACK_NOTIFIER_BOT_TOKEN` Actions secret — nothing to set per
+   repo. The target channel is `SLACK_CHANNEL_ID` in
+   `.github/workflows/daily.yml` (currently `C0BR5S8F6BZ`, #github-activity).
 
-2. Add it as a repo secret:
-   ```
-   gh secret set SLACK_WEBHOOK_URL --repo wyre-technology/stars-watcher
-   ```
-
-3. (Optional) If the default `GITHUB_TOKEN` lacks read access to private repos
+2. (Optional) If the default `GITHUB_TOKEN` lacks read access to private repos
    you want included, add a fine-grained PAT as `GH_API_TOKEN` with:
    `Repository → Administration: Read`, `Metadata: Read`. Without it, the
    digest will only see public repos under the org.
 
-4. Trigger manually the first time to confirm formatting:
+3. Trigger manually the first time to confirm formatting:
    ```
    gh workflow run daily.yml --repo wyre-technology/stars-watcher
    ```
