@@ -1,7 +1,7 @@
 {
-  "captured_at": "2026-08-26T14:15:06.765634+00:00",
+  "captured_at": "2026-08-27T17:46:02.038611+00:00",
   "clones_14d": {
-    "afkbot-mcp": 221
+    "afkbot-mcp": 229
   },
   "glama": {},
   "pulsemcp_visits": {},
@@ -10,35 +10,10 @@
     ".github": 0,
     "CIPP": 0,
     "CIPP-API": 0,
-    "Instatic": 0,
-    "adoption-watcher": 0,
     "afkbot-mcp": 0,
     "ai-impact-tracker": 0,
     "astro-terminal-docs": 1,
-    "autotask-datasink": 1,
-    "blumira-cli": 0,
     "claudeCISBenchmarks": 0,
-    "conduit-tunnel": 0,
-    "cortextos": 0,
-    "datto-rmm-cli": 0,
-    "domotz-cli": 0,
-    "gateway-vs-conduit": 0,
-    "homebrew-wyre": 0,
-    "hudu-cli": 0,
-    "huntress-cli": 0,
-    "itglue-cli": 0,
-    "liongard-cli": 0,
-    "mcp-eval-baseline": 0,
-    "mcpgw-cli": 0,
-    "mimecast-cli": 0,
-    "msp-claude-plugins": 42,
-    "ninjaone-cli": 1,
-    "rocketcyber-cli": 0,
-    "rootly-cli": 0,
-    "salesbuildr-cli": 0,
-    "stars-watcher": 1,
-    "superops-cli": 0,
-    "veeam-cli": 0,
-    "wyre-astro-theme": 0
+    "homebrew-wyre": 0
   }
 }
