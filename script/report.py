@@ -1,6 +1,6 @@
 """Daily WYRE GitHub stars digest.
 
-Pulls stargazer counts for every non-archived repo in the wyre-technology
+Pulls stargazer counts for every non-archived repo in the wyre-ai
 org, diffs against state/snapshot.json (committed each run), and posts a
 Slack Block Kit message to #github-activity in the WYRE AI workspace via the shared WYRE Notifier bot (SLACK_BOT_TOKEN + SLACK_CHANNEL_ID).
 
@@ -26,7 +26,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-ORG = "wyre-technology"
+ORG = "wyre-ai"
 SNAPSHOT_PATH = Path("state/snapshot.json")
 
 
@@ -102,7 +102,7 @@ def latest_registry_versions(entries: list) -> dict[str, str]:
 def fetch_registry_servers(mcp_repos: list[str]) -> dict[str, str]:
     """Latest published MCP Registry version per repo, queried one repo at a time.
 
-    The bulk ``?search=io.github.wyre-technology`` listing caps at 100 entries and
+    The bulk ``?search=io.github.wyre-ai`` listing caps at 100 entries and
     does not page (``next_cursor`` never advances), and every server *version* is
     a separate entry — so once the fleet had >100 version-entries, servers past
     the cap silently dropped out and looked unpublished. A per-repo lookup is
@@ -303,7 +303,7 @@ PULSEMCP_URL = "https://www.pulsemcp.com/api/v0.1/servers"
 def match_pulsemcp(servers: list, mcp_repos: list[str]) -> dict[str, int]:
     """Map PulseMCP server objects to {repo_name: visitors_4w} by sourceCodeUrl.
 
-    Matches only entries whose sourceCodeUrl contains the wyre-technology org
+    Matches only entries whose sourceCodeUrl contains the wyre-ai org
     path to avoid false positives from other orgs with identically-named repos.
     The visitor count comes from stats.visitorsEstimateLastFourWeeks.
     """
@@ -324,9 +324,9 @@ def match_pulsemcp(servers: list, mcp_repos: list[str]) -> dict[str, int]:
 
 
 def fetch_pulsemcp_visits(mcp_repos: list[str]) -> dict[str, int]:
-    """Fetch visitor estimates from PulseMCP for wyre-technology MCP servers.
+    """Fetch visitor estimates from PulseMCP for wyre-ai MCP servers.
 
-    Queries PULSEMCP_URL with q=wyre-technology, follows offset-based pages,
+    Queries PULSEMCP_URL with q=wyre-ai, follows offset-based pages,
     and passes the raw server list through match_pulsemcp for filtering.
     No auth is required; a descriptive User-Agent is sent per PulseMCP docs.
     Returns {} on network failure (caller uses safe() wrapper).

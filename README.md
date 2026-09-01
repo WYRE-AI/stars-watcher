@@ -1,6 +1,6 @@
 # wyre-stars-watcher
 
-Daily digest of GitHub star activity across every non-archived `wyre-technology`
+Daily digest of GitHub star activity across every non-archived `wyre-ai`
 repo, posted to Slack.
 
 Runs every day at 14:00 UTC (10am ET / 9am ET depending on DST) via GitHub
@@ -16,7 +16,7 @@ Actions.
 > visitors over the last four weeks per server, sourced from PulseMCP's public
 > REST API. Adoption metrics (tool calls, active orgs, top vendors) live in a
 > separate digest sourced from the gateway DB — see
-> `wyre-technology/gateway-adoption-watcher`.
+> `wyre-ai/adoption-watcher`.
 
 ## Setup
 
@@ -33,17 +33,17 @@ Actions.
 
 3. Trigger manually the first time to confirm formatting:
    ```
-   gh workflow run daily.yml --repo wyre-technology/stars-watcher
+   gh workflow run daily.yml --repo wyre-ai/stars-watcher
    ```
 
 ## How it works
 
 `script/report.py` is plain stdlib Python — no `pip install`. It hits:
 
-- `GET /orgs/wyre-technology/repos` (paginated) — stars
-- `GET /repos/wyre-technology/<repo>/traffic/clones` — 14-day clones
+- `GET /orgs/wyre-ai/repos` (paginated) — stars
+- `GET /repos/wyre-ai/<repo>/traffic/clones` — 14-day clones
   (needs the `GH_API_TOKEN` PAT; skipped gracefully without it)
-- `GET /repos/wyre-technology/<repo>/releases/latest` — release tags
+- `GET /repos/wyre-ai/<repo>/releases/latest` — release tags
 - `GET registry.modelcontextprotocol.io/v0/servers` — MCP Registry coverage
 - `GET glama.ai/api/mcp/v1/servers` — Glama.ai directory coverage
 - `GET www.pulsemcp.com/api/v0.1/servers` — PulseMCP estimated visitors per

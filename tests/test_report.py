@@ -141,11 +141,11 @@ class TestClonesBlock(unittest.TestCase):
 
 PULSEMCP_FIXTURE = [
     {
-        "sourceCodeUrl": "https://github.com/wyre-technology/autotask-mcp",
+        "sourceCodeUrl": "https://github.com/wyre-ai/autotask-mcp",
         "stats": {"visitorsEstimateLastFourWeeks": 850},
     },
     {
-        "sourceCodeUrl": "https://github.com/wyre-technology/qbo-mcp/",
+        "sourceCodeUrl": "https://github.com/wyre-ai/qbo-mcp/",
         "stats": {"visitorsEstimateLastFourWeeks": 120},
     },
     {
