@@ -119,7 +119,7 @@ def fetch_registry_servers(mcp_repos: list[str]) -> dict[str, str]:
         entries.extend(
             e
             for e in data.get("servers", [])
-            if e.get("server", {}).get("name", "") == full
+            if e.get("server", {}).get("name", "").lower() == full.lower()
         )
     return latest_registry_versions(entries)
 
