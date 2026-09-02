@@ -12,10 +12,8 @@ Actions.
 > container packages in late 2022. The MCP Registry and Glama.ai are catalogs,
 > not analytics services — they expose presence and version, not downloads.
 > So this digest tracks *reach and freshness* across distribution channels, not
-> downloads. PulseMCP adds the first traffic-grade popularity signal: estimated
-> visitors over the last four weeks per server, sourced from PulseMCP's public
-> REST API. Adoption metrics (tool calls, active orgs, top vendors) live in a
-> separate digest sourced from the gateway DB — see
+> downloads or traffic. Adoption metrics (tool calls, active orgs, top vendors)
+> live in a separate digest sourced from the gateway DB — see
 > `wyre-ai/adoption-watcher`.
 
 ## Setup
@@ -46,15 +44,16 @@ Actions.
 - `GET /repos/wyre-ai/<repo>/releases/latest` — release tags
 - `GET registry.modelcontextprotocol.io/v0/servers` — MCP Registry coverage
 - `GET glama.ai/api/mcp/v1/servers` — Glama.ai directory coverage
-- `GET www.pulsemcp.com/api/v0.1/servers` — PulseMCP estimated visitors per
-  server over the last four weeks (popularity/traffic signal; public API,
-  no auth required)
 
 The registry and Glama sections track *reach and freshness* — whether each
-`*-mcp` server is published, current, and indexed. PulseMCP is the
-*popularity* signal: it measures actual estimated visitor traffic, which none
-of the other sources expose. See
+`*-mcp` server is published, current, and indexed. See
 `docs/superpowers/specs/2026-05-20-registry-reach-tracking-design.md`.
+
+PulseMCP traffic tracking (estimated visitors over the last four weeks) was
+removed — the free public search endpoint it depended on
+(`www.pulsemcp.com/api/v0.1/servers`) is gone. PulseMCP now runs a
+private, API-key-gated partner API at `api.pulsemcp.com`; re-add this section
+if WYRE gets partner credentials from `hello@pulsemcp.com`.
 
 The result is written to `state/snapshot.json` and diffed against the previous
 day's snapshot. Deltas, top movers, and totals are formatted as Slack Block Kit
