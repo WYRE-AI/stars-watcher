@@ -78,30 +78,44 @@ jobs:
       # Publish the updated snapshot to watcher-state via a separate
       # worktree, rather than committing it on this job's main checkout --
       # main stays untouched, watcher-state isn't branch-protected so this
-      # is a plain push, no PR needed. Assumes watcher-state already exists
-      # (bootstrapped once during rollout, task_1788465884620_03221284) --
-      # this step doesn't handle creating it from nothing.
+      # is a plain push, no PR needed. Creates watcher-state on the fly if
+      # it doesn't exist yet (rather than requiring it be pre-bootstrapped),
+      # so the very first run for a new watcher repo self-heals instead of
+      # crashing under `set -e` at the fetch.
       - name: Publish snapshot to watcher-state
         run: |
           set -euo pipefail
           git config user.name "wyre-stars-watcher[bot]"
           git config user.email "stars-watcher@users.noreply.github.com"
           python -m json.tool state/snapshot.json > /dev/null
-          git fetch origin watcher-state:refs/remotes/origin/watcher-state
-          # --no-checkout: this branch is bot-only today, but the worktree
-          # would otherwise materialize whatever's already committed there,
-          # symlinks included, before we `cp` into it. Building `state/` fresh
-          # instead means the destination path is always a real directory we
-          # just created, never something a future watcher-state commit
-          # could have turned into a symlink.
-          git worktree add --no-checkout -B watcher-state /tmp/watcher-state-wt origin/watcher-state
+
+          # --no-checkout in both branches below: this branch is bot-only
+          # today, but a normal checkout would materialize whatever's
+          # already committed there, symlinks included, before we `cp` into
+          # it. Building `state/` fresh instead means the destination path
+          # is always a real directory we just created, never something a
+          # future watcher-state commit could have turned into a symlink.
+          if git fetch origin watcher-state:refs/remotes/origin/watcher-state 2>publish-fetch-err.log; then
+            git worktree add --no-checkout -B watcher-state /tmp/watcher-state-wt origin/watcher-state
+          elif grep -qi "couldn't find remote ref" publish-fetch-err.log; then
+            echo "watcher-state branch does not exist yet -- creating it."
+            git worktree add --no-checkout --detach /tmp/watcher-state-wt
+            git -C /tmp/watcher-state-wt checkout --orphan watcher-state
+            git -C /tmp/watcher-state-wt rm -rf --cached . > /dev/null 2>&1 || true
+          else
+            echo "::error::git fetch of watcher-state failed unexpectedly:"
+            cat publish-fetch-err.log
+            exit 1
+          fi
+          rm -f publish-fetch-err.log
+
           mkdir -p /tmp/watcher-state-wt/state
           cp state/snapshot.json /tmp/watcher-state-wt/state/snapshot.json
           cd /tmp/watcher-state-wt
           git add state/snapshot.json
-          if git diff --cached --quiet -- state/snapshot.json; then
+          if git diff --cached --quiet -- state/snapshot.json 2>/dev/null; then
             echo "No snapshot change."
             exit 0
           fi
           git commit -m "snapshot: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push
+          git push origin HEAD:watcher-state
