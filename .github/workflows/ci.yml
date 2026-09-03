@@ -26,5 +26,7 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-      - name: Validate state snapshot JSON
-        run: python -m json.tool state/snapshot.json > /dev/null
+      # state/snapshot.json is no longer tracked on main -- it lives on the
+      # unprotected watcher-state branch instead (task_1788465884620_03221284),
+      # so there's nothing here to validate anymore. The equivalent guard now
+      # runs in daily.yml's publish step, right before it's actually written.
