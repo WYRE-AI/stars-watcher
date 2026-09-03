@@ -112,7 +112,13 @@ jobs:
           mkdir -p /tmp/watcher-state-wt/state
           cp state/snapshot.json /tmp/watcher-state-wt/state/snapshot.json
           cd /tmp/watcher-state-wt
-          git add state/snapshot.json
+          # -f: the orphan-creation branch above inherits the current HEAD's
+          # index, which on a fresh watcher-state includes main's .gitignore
+          # (it ignores state/snapshot.json there deliberately). watcher-state
+          # is a different branch with different rules -- we always want this
+          # file tracked here, so force past an ignore rule that was never
+          # written with this branch in mind.
+          git add -f state/snapshot.json
           if git diff --cached --quiet -- state/snapshot.json 2>/dev/null; then
             echo "No snapshot change."
             exit 0
