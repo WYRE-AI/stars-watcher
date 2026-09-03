@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **PR-triggered CI workflow** (`.github/workflows/ci.yml`): every pull request now runs a Python 3.12 syntax check of `script/report.py`, the stdlib `unittest` suite (18 tests), and JSON validation of `state/snapshot.json`. Closes the repo's automated-checks gap (Vanta `github-code-change-automated-checks-enabled`).
+
 ### Removed
 
 - **Dropped PulseMCP traffic tracking.** The free public search endpoint it depended on (`www.pulsemcp.com/api/v0.1/servers`) is gone — PulseMCP now gates its API behind partner API keys at `api.pulsemcp.com`. `pulsemcp_visits` had been empty in every snapshot since the feature was added, so this was dead weight, not a working feature going dark. Removed `match_pulsemcp`, `fetch_pulsemcp_visits`, `build_pulsemcp_block`, and the Slack section; can be re-added if WYRE gets partner credentials.
