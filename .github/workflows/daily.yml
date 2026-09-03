@@ -20,6 +20,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # state/snapshot.json is no longer tracked on main (branch protection
+      # blocks pushing it there, task_1788465884620_03221284) -- it lives on
+      # the unprotected `watcher-state` branch instead. Load the prior
+      # snapshot from there before running the report. A missing branch (real
+      # first run) is handled; any OTHER fetch failure fails the job instead
+      # of silently sending a false "everything is new" digest.
+      - name: Fetch prior snapshot from watcher-state
+        run: |
+          set -euo pipefail
+          mkdir -p state
+          if git fetch origin watcher-state:refs/remotes/origin/watcher-state 2>fetch-err.log; then
+            SNAPSHOT_TYPE=$(git cat-file -t origin/watcher-state:state/snapshot.json 2>/dev/null || echo "missing")
+            case "$SNAPSHOT_TYPE" in
+              blob)
+                git show origin/watcher-state:state/snapshot.json > state/snapshot.json
+                echo "Loaded prior snapshot from watcher-state."
+                ;;
+              missing)
+                echo "watcher-state branch exists but has no state/snapshot.json yet -- treating as first run."
+                rm -f state/snapshot.json
+                ;;
+              *)
+                echo "::error::state/snapshot.json on watcher-state is a $SNAPSHOT_TYPE, not a regular file -- refusing to treat that as a first run (it would silently wipe the real baseline)."
+                exit 1
+                ;;
+            esac
+          elif grep -qi "couldn't find remote ref" fetch-err.log; then
+            echo "watcher-state branch does not exist yet -- treating as first run."
+            rm -f state/snapshot.json
+          else
+            echo "::error::git fetch of watcher-state failed unexpectedly:"
+            cat fetch-err.log
+            exit 1
+          fi
+          rm -f fetch-err.log
+
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
@@ -39,10 +75,29 @@ jobs:
           SLACK_CHANNEL_ID: C0BR5S8F6BZ
         run: python script/report.py
 
-      - name: Commit updated snapshot
+      # Publish the updated snapshot to watcher-state via a separate
+      # worktree, rather than committing it on this job's main checkout --
+      # main stays untouched, watcher-state isn't branch-protected so this
+      # is a plain push, no PR needed. Assumes watcher-state already exists
+      # (bootstrapped once during rollout, task_1788465884620_03221284) --
+      # this step doesn't handle creating it from nothing.
+      - name: Publish snapshot to watcher-state
         run: |
+          set -euo pipefail
           git config user.name "wyre-stars-watcher[bot]"
           git config user.email "stars-watcher@users.noreply.github.com"
+          python -m json.tool state/snapshot.json > /dev/null
+          git fetch origin watcher-state:refs/remotes/origin/watcher-state
+          # --no-checkout: this branch is bot-only today, but the worktree
+          # would otherwise materialize whatever's already committed there,
+          # symlinks included, before we `cp` into it. Building `state/` fresh
+          # instead means the destination path is always a real directory we
+          # just created, never something a future watcher-state commit
+          # could have turned into a symlink.
+          git worktree add --no-checkout -B watcher-state /tmp/watcher-state-wt origin/watcher-state
+          mkdir -p /tmp/watcher-state-wt/state
+          cp state/snapshot.json /tmp/watcher-state-wt/state/snapshot.json
+          cd /tmp/watcher-state-wt
           git add state/snapshot.json
           if git diff --cached --quiet -- state/snapshot.json; then
             echo "No snapshot change."
