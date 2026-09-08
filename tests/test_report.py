@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "script"))
 
@@ -14,6 +15,22 @@ class TestImportable(unittest.TestCase):
     def test_module_imports_without_token(self):
         # Importing report must not require GITHUB_TOKEN to be set.
         self.assertTrue(hasattr(report, "main"))
+
+
+class TestBestToken(unittest.TestCase):
+    def test_prefers_admin_pat_when_set(self):
+        with mock.patch.dict(
+            os.environ, {"GH_API_TOKEN": "admin-pat", "GITHUB_TOKEN": "default"}, clear=True
+        ):
+            self.assertEqual(report._best_token(), "admin-pat")
+
+    def test_falls_back_to_default_token(self):
+        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "default"}, clear=True):
+            self.assertEqual(report._best_token(), "default")
+
+    def test_none_when_neither_set(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(report._best_token())
 
 
 REGISTRY_FIXTURE = [
