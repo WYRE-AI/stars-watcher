@@ -38,6 +38,17 @@ def _gh_token(admin: bool = False) -> str | None:
     return os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
 
 
+def _best_token() -> str | None:
+    """Prefer the admin-scoped PAT (GH_API_TOKEN) when it's configured.
+
+    The default GITHUB_TOKEN the workflow runs with can only see *public*
+    repos in the org -- private repos are silently invisible to it, which
+    undercounts the estate rather than erroring. GH_API_TOKEN, when set,
+    has org-wide read access and sees both.
+    """
+    return _gh_token(admin=True) or _gh_token()
+
+
 def gh_api(path: str, token: str | None = None) -> list | dict:
     """Paginated GitHub REST call. Follows Link headers for `?page=` results."""
     out: list = []
@@ -135,7 +146,7 @@ def fetch_latest_releases(repo_names: list[str]) -> dict[str, str]:
     out: dict[str, str] = {}
     for name in repo_names:
         try:
-            rel = gh_api(f"/repos/{ORG}/{name}/releases/latest")
+            rel = gh_api(f"/repos/{ORG}/{name}/releases/latest", token=_best_token())
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 continue  # no releases cut for this repo
@@ -298,7 +309,7 @@ def build_clones_block(clones: dict[str, int], prev_clones: dict[str, int]) -> d
 
 
 def fetch_repo_stars() -> dict[str, int]:
-    repos = gh_api(f"/orgs/{ORG}/repos?type=all")
+    repos = gh_api(f"/orgs/{ORG}/repos?type=all", token=_best_token())
     return {
         r["name"]: r["stargazers_count"]
         for r in repos
