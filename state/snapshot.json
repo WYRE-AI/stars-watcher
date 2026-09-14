@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-13T17:12:21.128074+00:00",
+  "captured_at": "2026-09-14T19:00:52.013064+00:00",
   "clones_14d": {},
   "glama": {},
   "registry": {
@@ -7,7 +7,7 @@
     "action1-mcp": "1.1.7",
     "alternative-payments-mcp": "1.0.10",
     "atera-mcp": "1.5.10",
-    "autotask-mcp": "2.36.1",
+    "autotask-mcp": "2.38.0",
     "auvik-mcp": "1.4.4",
     "avanan-legacy-mcp": "2.3.0",
     "avanan-mcp": "2.2.3",
@@ -20,7 +20,7 @@
     "connectwise-manage-mcp": "1.8.8",
     "crewhu-mcp": "2.0.4",
     "datto-bcdr-mcp": "1.1.5",
-    "datto-rmm-mcp": "1.7.9",
+    "datto-rmm-mcp": "1.7.10",
     "datto-saas-protection-mcp": "2.1.5",
     "domotz-mcp": "1.1.13",
     "freshdesk-mcp": "1.0.11",
@@ -159,7 +159,7 @@
     "node-unitrends": 0,
     "nutanix-mcp": 0,
     "proofpoint-essentials-mcp": 0,
-    "proofpoint-mcp": 2,
+    "proofpoint-mcp": 3,
     "qbo-mcp": 2,
     "reusable-workflows": 0,
     "rocketcyber-mcp": 0,
