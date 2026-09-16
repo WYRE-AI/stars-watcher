@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-15T17:54:09.227968+00:00",
+  "captured_at": "2026-09-16T18:00:02.390713+00:00",
   "clones_14d": {},
   "glama": {},
   "registry": {
@@ -113,7 +113,7 @@
     "mcpgw-cli": 0,
     "meraki-mcp": 1,
     "mimecast-mcp": 1,
-    "msp-claude-plugins": 45,
+    "msp-claude-plugins": 46,
     "ncentral-mcp": 0,
     "ninjaone-mcp": 26,
     "node-alternative-payments": 0,
