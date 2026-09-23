@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-22T17:54:41.347211+00:00",
+  "captured_at": "2026-09-23T18:13:46.439787+00:00",
   "clones_14d": {},
   "glama": {},
   "registry": {
@@ -21,7 +21,7 @@
     "cisco-umbrella-mcp": "1.0.0",
     "connectwise-automate-mcp": "2.0.2",
     "connectwise-cpq-mcp": "1.0.5",
-    "connectwise-manage-mcp": "1.8.8",
+    "connectwise-manage-mcp": "1.9.0",
     "cork-mcp": "1.0.0",
     "crewhu-mcp": "2.0.4",
     "customer-thermometer-mcp": "1.0.3",
@@ -43,7 +43,7 @@
     "iqms-mcp": "1.2.14",
     "ironscales-mcp": "1.2.2",
     "island-mcp": "1.0.1",
-    "itglue-mcp": "1.17.1",
+    "itglue-mcp": "1.17.2",
     "kaseya-bms-mcp": "1.1.5",
     "kaseya-quote-manager-mcp": "1.0.14",
     "kaseya-vsa-mcp": "1.1.5",
@@ -108,7 +108,7 @@
     "conduit-tunnel": 0,
     "connectwise-automate-mcp": 1,
     "connectwise-cpq-mcp": 0,
-    "connectwise-manage-mcp": 24,
+    "connectwise-manage-mcp": 25,
     "cork-mcp": 0,
     "cortextos": 0,
     "crewhu-mcp": 0,
