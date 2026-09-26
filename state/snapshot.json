@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-25T18:16:09.238516+00:00",
+  "captured_at": "2026-09-26T17:36:16.801653+00:00",
   "clones_14d": {},
   "glama": {},
   "registry": {
@@ -49,6 +49,7 @@
     "kaseya-vsa-mcp": "1.1.5",
     "keeper-mcp": "1.0.3",
     "knowbe4-mcp": "1.1.5",
+    "kpn-mcp": "1.1.1",
     "liongard-mcp": "2.3.9",
     "mailprotector-mcp": "1.0.3",
     "meraki-mcp": "1.1.10",
@@ -142,6 +143,7 @@
     "kaseya-vsa-mcp": 0,
     "keeper-mcp": 0,
     "knowbe4-mcp": 0,
+    "kpn-mcp": 0,
     "liongard-mcp": 0,
     "mailprotector-mcp": 0,
     "mcp-eval-baseline": 0,
@@ -176,6 +178,7 @@
     "node-kaseya-bms": 0,
     "node-kaseya-quote-manager": 0,
     "node-kaseya-vsa": 0,
+    "node-kpn": 0,
     "node-liongard": 0,
     "node-mailprotector": 0,
     "node-meraki": 0,
