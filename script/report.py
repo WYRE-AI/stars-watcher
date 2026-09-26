@@ -25,6 +25,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NoReturn
 
 ORG = "wyre-ai"
 SNAPSHOT_PATH = Path("state/snapshot.json")
@@ -84,11 +85,16 @@ def gh_api(path: str, token: str | None = None) -> list | dict:
 REGISTRY_URL = "https://registry.modelcontextprotocol.io/v0/servers"
 
 
-def http_get_json(url: str) -> dict:
-    """GET a public JSON endpoint with no auth. Stdlib only."""
-    req = urllib.request.Request(
-        url, headers={"User-Agent": "wyre-stars-watcher", "Accept": "application/json"}
-    )
+def http_get_json(url: str, headers: dict[str, str] | None = None) -> dict:
+    """GET a JSON endpoint. Stdlib only.
+
+    Extra ``headers`` are merged over the default User-Agent and Accept.
+    The MCP Registry call stays unauthenticated; Glama passes a bearer token.
+    """
+    req_headers = {"User-Agent": "wyre-stars-watcher", "Accept": "application/json"}
+    if headers:
+        req_headers.update(headers)
+    req = urllib.request.Request(url, headers=req_headers)
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
@@ -215,6 +221,29 @@ def build_registry_block(
 
 
 GLAMA_URL = "https://glama.ai/api/mcp/v1/servers"
+GLAMA_SKIP_NO_KEY = "GLAMA_API_KEY not configured"
+
+
+class GlamaSkipped(Exception):
+    """Glama coverage is unknown (missing key or auth refusal).
+
+    Callers must render this as a skip, not as zero servers indexed.
+    """
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def glama_api_key() -> str | None:
+    """Return the configured Glama key, or None when unset or blank."""
+    key = os.environ.get("GLAMA_API_KEY", "").strip()
+    return key or None
+
+
+def _skip_glama(reason: str) -> NoReturn:
+    print(f"  glama skipped: {reason}", file=sys.stderr)
+    raise GlamaSkipped(reason)
 
 
 def match_glama(servers: list, mcp_repos: list[str]) -> dict[str, str]:
@@ -232,30 +261,74 @@ def match_glama(servers: list, mcp_repos: list[str]) -> dict[str, str]:
 
 
 def fetch_glama_servers() -> list:
-    """Fetch all Glama MCP servers matching 'wyre', following cursor pages."""
+    """Fetch Glama MCP servers matching 'wyre', following cursor pages.
+
+    Sends ``Authorization: Bearer ${GLAMA_API_KEY}`` and keeps the default
+    User-Agent and Accept headers. Raises GlamaSkipped (after a stderr line)
+    when the key is missing or Glama returns 401/403, so a failed auth is
+    not reported as zero coverage.
+    """
+    key = glama_api_key()
+    if not key:
+        _skip_glama(GLAMA_SKIP_NO_KEY)
     servers: list = []
     cursor = ""
+    auth = {"Authorization": f"Bearer {key}"}
     while True:
         url = f"{GLAMA_URL}?query=wyre"
         if cursor:
             url += f"&after={cursor}"
-        data = http_get_json(url)
+        try:
+            data = http_get_json(url, headers=auth)
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                _skip_glama(f"GLAMA_API_KEY rejected (HTTP {exc.code})")
+            raise
         servers.extend(data.get("servers", []))
         page = data.get("pageInfo", {})
         if not page.get("hasNextPage"):
             break
-        cursor = page.get("endCursor", "")
+        cursor = page.get("endCursor") or ""
         if not cursor:
             break
     return servers
+
+
+def load_glama(mcp_repos: list[str]) -> tuple[dict[str, str], str | None]:
+    """Return ``(matched repos, skip_reason)``.
+
+    ``skip_reason`` is set when coverage is unknown. A successful fetch that
+    matches nothing returns ``({}, None)`` — that is a real zero, not a skip.
+    Other fetch errors also skip, so a transport failure is not rendered as
+    "Not on Glama" for every repo.
+    """
+    try:
+        raw = fetch_glama_servers()
+    except GlamaSkipped as exc:
+        return {}, exc.reason
+    except Exception as exc:  # noqa: BLE001 - one source must not sink the run
+        reason = f"fetch failed ({exc})"
+        print(f"  glama skipped: {reason}", file=sys.stderr)
+        return {}, reason
+    return match_glama(raw, mcp_repos), None
 
 
 def build_glama_block(
     mcp_repos: list[str],
     glama: dict[str, str],
     prev_glama: dict[str, str],
+    skip_reason: str | None = None,
 ) -> dict:
-    """Slack section: Glama.ai directory coverage."""
+    """Slack section: Glama.ai directory coverage.
+
+    A skip_reason means the directory was not read; do not claim 0 indexed.
+    Successful results include the attribution Glama's API license requires.
+    """
+    if skip_reason:
+        return {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"_Glama skipped: {skip_reason}_"},
+        }
     indexed = [r for r in mcp_repos if r in glama]
     absent = [r for r in mcp_repos if r not in glama]
     lines = [f"*:telescope: Glama.ai*  ·  {len(indexed)} of {len(mcp_repos)} servers indexed"]
@@ -265,6 +338,7 @@ def build_glama_block(
         lines.append(f"_Newly indexed:_ {', '.join('`' + r + '`' for r in newly)}")
     if absent:
         lines.append(f"_Not on Glama:_ {', '.join('`' + r + '`' for r in absent)}")
+    lines.append("_Source: <https://glama.ai|Glama.ai>_")
 
     return {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
 
@@ -331,6 +405,7 @@ def format_message(
     prev_glama: dict[str, str],
     clones: dict[str, int],
     prev_clones: dict[str, int],
+    glama_skip: str | None = None,
 ) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -384,7 +459,9 @@ def format_message(
     blocks.append({"type": "divider"})
     blocks.append(build_clones_block(clones, prev_clones))
     blocks.append(build_registry_block(mcp_repos, registry, releases, prev_registry))
-    blocks.append(build_glama_block(mcp_repos, glama, prev_glama))
+    blocks.append(
+        build_glama_block(mcp_repos, glama, prev_glama, skip_reason=glama_skip)
+    )
 
     blocks.append(
         {
@@ -464,14 +541,14 @@ def main() -> int:
     print("Fetching GitHub releases…")
     releases = safe("releases", lambda: fetch_latest_releases(mcp_repos), {})
     print("Fetching Glama.ai…")
-    glama_raw = safe("glama", fetch_glama_servers, [])
-    glama = match_glama(glama_raw, mcp_repos)
+    glama, glama_skip = load_glama(mcp_repos)
     print("Fetching clone traffic…")
     clones = safe("clones", lambda: fetch_clone_traffic(mcp_repos), {})
 
     payload = format_message(
         stars, prev_stars, registry, releases, prev_registry,
         glama, prev_glama, clones, prev_clones,
+        glama_skip=glama_skip,
     )
     post_slack(payload)
 
@@ -480,7 +557,10 @@ def main() -> int:
         "stars": stars,
         "clones_14d": clones,
         "registry": registry,
-        "glama": glama,
+        # Keep the previous Glama map when this run did not actually read the
+        # directory. Writing {} would make tomorrow's digest flag every server
+        # as newly indexed.
+        "glama": prev_glama if glama_skip else glama,
     }
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
