@@ -29,7 +29,15 @@ Actions.
    `Repository → Administration: Read`, `Metadata: Read`. Without it, the
    digest will only see public repos under the org.
 
-3. Trigger manually the first time to confirm formatting:
+3. Glama.ai directory coverage needs an API key. Create one at
+   <https://glama.ai/settings/api-keys> and store it as an Actions secret
+   named `GLAMA_API_KEY` (repo or org — the daily workflow reads
+   `secrets.GLAMA_API_KEY`). Requests send it as `Authorization: Bearer`.
+   If the secret is missing or Glama rejects it (HTTP 401/403), the digest
+   says Glama was skipped instead of listing every server under
+   "Not on Glama".
+
+4. Trigger manually the first time to confirm formatting:
    ```
    gh workflow run daily.yml --repo wyre-ai/stars-watcher
    ```
@@ -44,6 +52,10 @@ Actions.
 - `GET /repos/wyre-ai/<repo>/releases/latest` — release tags
 - `GET registry.modelcontextprotocol.io/v0/servers` — MCP Registry coverage
 - `GET glama.ai/api/mcp/v1/servers` — Glama.ai directory coverage
+  (requires `GLAMA_API_KEY`; skipped with an explicit Slack line when the
+  key is unset or rejected). Results include a Glama.ai attribution link,
+  which their [API data license](https://glama.ai/policies/terms-of-service)
+  requires when the directory data is shown.
 
 The registry and Glama sections track *reach and freshness* — whether each
 `*-mcp` server is published, current, and indexed. See

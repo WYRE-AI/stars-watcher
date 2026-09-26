@@ -73,6 +73,11 @@ jobs:
           # WYRE Notifier app (org-level secret) → #github-activity, WYRE AI workspace
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_NOTIFIER_BOT_TOKEN }}
           SLACK_CHANNEL_ID: C0BR5S8F6BZ
+          # Glama directory reads require a bearer token. Create a key at
+          # https://glama.ai/settings/api-keys and store it as the
+          # GLAMA_API_KEY Actions secret (repo or org). A missing or rejected
+          # key skips the section instead of reporting 0 coverage.
+          GLAMA_API_KEY: ${{ secrets.GLAMA_API_KEY }}
         run: python script/report.py
 
       # Publish the updated snapshot to watcher-state via a separate
