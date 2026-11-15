@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20
 **Status:** Approved (design)
-**Repo:** `wyre-technology/stars-watcher`
+**Repo:** `WYRE-AI/stars-watcher`
 
 ## Problem
 
