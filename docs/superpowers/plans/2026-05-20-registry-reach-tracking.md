@@ -452,8 +452,8 @@ Add to `tests/test_report.py`:
 
 ```python
 GLAMA_FIXTURE = [
-    {"id": "yyxqea2oqs", "repository": {"url": "https://github.com/wyre-technology/xero-mcp"}},
-    {"id": "myg2ycwb1g", "repository": {"url": "https://github.com/wyre-technology/hudu-mcp/"}},
+    {"id": "yyxqea2oqs", "repository": {"url": "https://github.com/WYRE-AI/xero-mcp"}},
+    {"id": "myg2ycwb1g", "repository": {"url": "https://github.com/WYRE-AI/hudu-mcp/"}},
     {"id": "zzz", "repository": {"url": "https://github.com/someone-else/other-mcp"}},
     {"id": "nourl"},
 ]
@@ -909,4 +909,4 @@ git commit -m "feat: wire registry, Glama, and clone sections into daily digest"
 - **Spec coverage:** Registry coverage section → Tasks 2,3,4. Glama coverage → Tasks 5,6. Clone traffic + graceful degradation → Task 7. Snapshot schema extension → Task 8. Per-source error isolation → Task 8 `safe()` wrapper. README naming/framing → Task 8 Step 6. All spec sections mapped.
 - **Type consistency:** `fetch_registry_servers`/`latest_registry_versions` → `dict[str,str]`; `fetch_latest_releases` → `dict[str,str]`; `match_glama` → `dict[str,str]`; `fetch_clone_traffic` → `dict[str,int]`. `build_*_block` functions all consume those exact types and return one Slack block dict. `format_message` and `main` pass them in the same order.
 - **No placeholders:** every code step contains complete, runnable code.
-- **First CI run** after merge should be triggered manually: `gh workflow run daily.yml --repo wyre-technology/stars-watcher`.
+- **First CI run** after merge should be triggered manually: `gh workflow run daily.yml --repo WYRE-AI/stars-watcher`.

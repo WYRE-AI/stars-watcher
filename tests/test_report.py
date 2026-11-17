@@ -107,8 +107,8 @@ class TestRegistryBlock(unittest.TestCase):
 
 
 GLAMA_FIXTURE = [
-    {"id": "yyxqea2oqs", "repository": {"url": "https://github.com/wyre-technology/xero-mcp"}},
-    {"id": "myg2ycwb1g", "repository": {"url": "https://github.com/wyre-technology/hudu-mcp/"}},
+    {"id": "yyxqea2oqs", "repository": {"url": "https://github.com/WYRE-AI/xero-mcp"}},
+    {"id": "myg2ycwb1g", "repository": {"url": "https://github.com/WYRE-AI/hudu-mcp/"}},
     {"id": "zzz", "repository": {"url": "https://github.com/someone-else/other-mcp"}},
     {"id": "nourl"},
 ]
@@ -213,7 +213,7 @@ class TestGlamaFetch(unittest.TestCase):
                 "servers": [
                     {
                         "id": "yyxqea2oqs",
-                        "repository": {"url": "https://github.com/wyre-technology/xero-mcp"},
+                        "repository": {"url": "https://github.com/WYRE-AI/xero-mcp"},
                     }
                 ],
                 "pageInfo": {"hasNextPage": True, "endCursor": "cursor-1"},
@@ -222,7 +222,7 @@ class TestGlamaFetch(unittest.TestCase):
                 "servers": [
                     {
                         "id": "myg2ycwb1g",
-                        "repository": {"url": "https://github.com/wyre-technology/hudu-mcp/"},
+                        "repository": {"url": "https://github.com/WYRE-AI/hudu-mcp/"},
                     }
                 ],
                 "pageInfo": {"hasNextPage": False, "endCursor": None},
