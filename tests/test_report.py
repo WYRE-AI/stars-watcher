@@ -321,46 +321,71 @@ class TestClonesBlock(unittest.TestCase):
         self.assertIn("+10", text)
 
 
-class TestFormatMessageIntegration(unittest.TestCase):
-    def test_message_includes_all_sections(self):
-        payload = report.format_message(
-            curr={"autotask-mcp": 3, "conduit": 0},
-            prev={"autotask-mcp": 2, "conduit": 0},
-            registry={"autotask-mcp": "2.25.0"},
-            releases={"autotask-mcp": "2.27.1"},
-            prev_registry={},
-            glama={},
-            prev_glama={},
-            clones={},
-            prev_clones={},
-        )
-        blob = json.dumps(payload)
-        self.assertIn("MCP Registry", blob)
-        self.assertIn("Glama.ai", blob)
-        self.assertIn("skipped", blob)
-        self.assertIn("https://glama.ai", blob)
+class TestDashboardUrl(unittest.TestCase):
+    def test_default_when_unset(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(report.dashboard_url(), report.DEFAULT_DASHBOARD_URL)
 
-    def test_glama_skip_does_not_list_every_repo_absent(self):
-        payload = report.format_message(
-            curr={"autotask-mcp": 3, "conduit": 0},
-            prev={"autotask-mcp": 2, "conduit": 0},
-            registry={"autotask-mcp": "2.25.0"},
-            releases={},
-            prev_registry={},
-            glama={},
-            prev_glama={"autotask-mcp": "abc"},
-            clones={},
-            prev_clones={},
-            glama_skip="GLAMA_API_KEY not configured",
+    def test_env_override(self):
+        with mock.patch.dict(
+            os.environ, {"DASHBOARD_URL": "https://example.test/admin"}, clear=True
+        ):
+            self.assertEqual(report.dashboard_url(), "https://example.test/admin")
+
+    def test_blank_env_falls_back_to_default(self):
+        with mock.patch.dict(os.environ, {"DASHBOARD_URL": "  "}, clear=True):
+            self.assertEqual(report.dashboard_url(), report.DEFAULT_DASHBOARD_URL)
+
+
+class TestFormatMessage(unittest.TestCase):
+    def test_single_line_with_default_link_and_no_numbers(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            payload = report.format_message()
+        self.assertEqual(len(payload["blocks"]), 1)
+        text = payload["blocks"][0]["text"]["text"]
+        self.assertEqual(
+            text, "Daily adoption metrics: https://conduit.wyre.ai/admin/revenue"
         )
-        texts = [
-            block.get("text", {}).get("text", "")
-            for block in payload["blocks"]
-            if block.get("type") == "section"
-        ]
-        glama_text = next(text for text in texts if "Glama" in text)
-        self.assertEqual(glama_text, "_Glama skipped: GLAMA_API_KEY not configured_")
-        self.assertNotIn("Not on Glama", json.dumps(payload))
+        # No inline metric noise from the old digest.
+        for needle in ("stars", "MCP Registry", "Glama", "cloned", "+"):
+            self.assertNotIn(needle, text)
+
+    def test_explicit_url_argument(self):
+        payload = report.format_message("https://example.test/dash")
+        self.assertEqual(
+            payload["blocks"][0]["text"]["text"],
+            "Daily adoption metrics: https://example.test/dash",
+        )
+
+    def test_print_message_flag_prints_line_and_exits(self):
+        stdout = io.StringIO()
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with contextlib.redirect_stdout(stdout):
+                rc = report.main(["--print-message"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(
+            stdout.getvalue().strip(),
+            "Daily adoption metrics: https://conduit.wyre.ai/admin/revenue",
+        )
+
+
+class TestPostSlackDryRun(unittest.TestCase):
+    def test_dry_run_prints_and_does_not_call_slack(self):
+        payload = report.format_message("https://conduit.wyre.ai/admin/revenue")
+        stderr = io.StringIO()
+        stdout = io.StringIO()
+        with mock.patch.dict(
+            os.environ,
+            {"SLACK_BOT_TOKEN": "xoxb-test", "SLACK_CHANNEL_ID": "C123"},
+            clear=True,
+        ):
+            with mock.patch("urllib.request.urlopen") as urlopen:
+                with contextlib.redirect_stderr(stderr):
+                    with contextlib.redirect_stdout(stdout):
+                        report.post_slack(payload, dry_run=True)
+        urlopen.assert_not_called()
+        self.assertIn("dry-run", stderr.getvalue())
+        self.assertIn("https://conduit.wyre.ai/admin/revenue", stdout.getvalue())
 
 
 if __name__ == "__main__":

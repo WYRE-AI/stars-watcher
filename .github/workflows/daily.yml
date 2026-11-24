@@ -5,6 +5,11 @@ on:
     # 14:00 UTC = 10:00 ET (EDT) / 09:00 ET (EST). Aim for "morning coffee" eyeballs.
     - cron: "0 14 * * *"
   workflow_dispatch:
+    inputs:
+      dashboard_url:
+        description: "Conduit admin dashboard URL linked in the Slack post"
+        required: false
+        default: "https://conduit.wyre.ai/admin/revenue"
 
 permissions:
   contents: write
@@ -78,6 +83,9 @@ jobs:
           # GLAMA_API_KEY Actions secret (repo or org). A missing or rejected
           # key skips the section instead of reporting 0 coverage.
           GLAMA_API_KEY: ${{ secrets.GLAMA_API_KEY }}
+          # One-line Slack post links here. Override via workflow_dispatch
+          # input; scheduled runs use the default.
+          DASHBOARD_URL: ${{ inputs.dashboard_url || 'https://conduit.wyre.ai/admin/revenue' }}
         run: python script/report.py
 
       # Publish the updated snapshot to watcher-state via a separate

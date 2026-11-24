@@ -1,17 +1,15 @@
-"""Daily WYRE GitHub stars digest.
+"""Daily WYRE adoption watcher.
 
-Pulls stargazer counts for every non-archived repo in the wyre-ai
-org, diffs against state/snapshot.json (committed each run), and posts a
-Slack Block Kit message to #github-activity in the WYRE AI workspace via the shared WYRE Notifier bot (SLACK_BOT_TOKEN + SLACK_CHANNEL_ID).
+Collects GitHub star / clone / registry / Glama signals for every
+non-archived repo in the wyre-ai org, writes state/snapshot.json
+(committed each run so Conduit can backfill trend history from that
+file's git history), and posts a one-line Slack pointer to the Conduit
+admin dashboard in #github-activity via the shared WYRE Notifier bot
+(SLACK_BOT_TOKEN + SLACK_CHANNEL_ID).
 
-npm and GHCR were stripped from this digest because:
-  - WYRE publishes npm packages to GitHub Packages (npm.pkg.github.com),
-    not the public npm registry — public download counters report 0.
-    GitHub Packages does not expose per-package download counts via API.
-  - GitHub deprecated the `download_count` field on container packages
-    in late 2022; it now always returns 0.
-
-Adoption metrics live in a separate digest sourced from the gateway DB.
+The Slack post itself carries no inline numbers — the dashboard at
+DASHBOARD_URL (default https://conduit.wyre.ai/admin/revenue) is the
+source of truth for metrics.
 
 Stdlib only — no pip install needed in CI.
 """
@@ -29,6 +27,7 @@ from typing import NoReturn
 
 ORG = "wyre-ai"
 SNAPSHOT_PATH = Path("state/snapshot.json")
+DEFAULT_DASHBOARD_URL = "https://conduit.wyre.ai/admin/revenue"
 
 
 def _gh_token(admin: bool = False) -> str | None:
@@ -395,102 +394,51 @@ def fmt_change(delta: int) -> str:
     return f"+{delta}" if delta > 0 else str(delta)
 
 
-def format_message(
-    curr: dict[str, int],
-    prev: dict[str, int],
-    registry: dict[str, str],
-    releases: dict[str, str],
-    prev_registry: dict[str, str],
-    glama: dict[str, str],
-    prev_glama: dict[str, str],
-    clones: dict[str, int],
-    prev_clones: dict[str, int],
-    glama_skip: str | None = None,
-) -> dict:
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+def dashboard_url() -> str:
+    """Conduit admin dashboard linked from the daily Slack post.
 
-    total_curr = sum(curr.values())
-    total_prev = sum(prev.values()) or total_curr
-    movers: list[tuple[str, int, int]] = []
-    for name, count in curr.items():
-        delta = count - prev.get(name, count)
-        if delta != 0:
-            movers.append((name, delta, count))
-    movers.sort(key=lambda t: -t[1])
+    Override with DASHBOARD_URL (workflow input / env). Blank values fall
+    back to DEFAULT_DASHBOARD_URL so a misconfigured empty input cannot
+    produce a broken message.
+    """
+    return os.environ.get("DASHBOARD_URL", "").strip() or DEFAULT_DASHBOARD_URL
 
-    blocks = [
-        {
-            "type": "header",
-            "text": {"type": "plain_text", "text": f":star: WYRE GitHub stars · {today}"},
-        },
-        {
-            "type": "section",
-            "fields": [
-                {
-                    "type": "mrkdwn",
-                    "text": f"*Estate total*\n{total_curr} stars across {len(curr)} repos",
-                },
-                {
-                    "type": "mrkdwn",
-                    "text": f"*Day-over-day*\n{fmt_change(total_curr - total_prev)}",
-                },
-            ],
-        },
-    ]
 
-    if movers:
-        top = movers[:10]
-        lines = "\n".join(f"• `{name}` {fmt_change(d)} → {curr_n}" for name, d, curr_n in top)
-        blocks.append(
+def format_message(url: str | None = None) -> dict:
+    """One-line Slack pointer to the Conduit admin dashboard — no numbers."""
+    link = (url or dashboard_url()).strip() or DEFAULT_DASHBOARD_URL
+    text = f"Daily adoption metrics: {link}"
+    return {
+        "blocks": [
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"*Movers*\n{lines}"},
+                "text": {"type": "mrkdwn", "text": text},
             }
-        )
-    else:
-        blocks.append(
-            {
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": "_No star changes since the previous run._"},
-            }
-        )
-
-    mcp_repos = mcp_repo_names(curr)
-    blocks.append({"type": "divider"})
-    blocks.append(build_clones_block(clones, prev_clones))
-    blocks.append(build_registry_block(mcp_repos, registry, releases, prev_registry))
-    blocks.append(
-        build_glama_block(mcp_repos, glama, prev_glama, skip_reason=glama_skip)
-    )
-
-    blocks.append(
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": f"<https://github.com/{ORG}|github.com/{ORG}> · stars-watcher",
-                }
-            ],
-        }
-    )
-
-    return {"blocks": blocks}
+        ],
+    }
 
 
-def post_slack(payload: dict) -> None:
+def post_slack(payload: dict, *, dry_run: bool = False) -> None:
     # Posts as the shared "WYRE Notifier" Slack app (wyre-technology/.github
     # slack-app/notifier) — org-level SLACK_NOTIFIER_BOT_TOKEN secret, WYRE AI
     # workspace, #github-activity.
+    fallback = "Daily adoption metrics"
+    for block in payload.get("blocks", []):
+        text = (block.get("text") or {}).get("text")
+        if text:
+            fallback = text
+            break
+
     token = os.environ.get("SLACK_BOT_TOKEN", "").strip()
     channel = os.environ.get("SLACK_CHANNEL_ID", "").strip()
-    if not token or not channel:
-        print("SLACK_BOT_TOKEN/SLACK_CHANNEL_ID not set — printing payload to stdout:", file=sys.stderr)
+    if dry_run or not token or not channel:
+        reason = "dry-run" if dry_run else "SLACK_BOT_TOKEN/SLACK_CHANNEL_ID not set"
+        print(f"{reason} — printing payload to stdout:", file=sys.stderr)
         print(json.dumps(payload, indent=2))
         return
     body = {
         "channel": channel,
-        "text": "Daily stars digest",
+        "text": fallback,
         "username": "Stars Watcher",
         "icon_emoji": ":star:",
         **payload,
@@ -510,23 +458,29 @@ def post_slack(payload: dict) -> None:
             sys.exit(f"chat.postMessage failed: {result.get('error')}")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # --print-message: emit the Slack line and exit (no network, no Slack,
+    # no snapshot write). --dry-run: full collect + snapshot, but never post.
+    if "--print-message" in argv:
+        payload = format_message()
+        print(payload["blocks"][0]["text"]["text"])
+        return 0
+    dry_run = "--dry-run" in argv
+
     print("Fetching GitHub stars…")
     stars = fetch_repo_stars()
     print(f"  {len(stars)} repos, {sum(stars.values())} stars")
 
     prev: dict = {}
-    prev_stars: dict[str, int] = {}
+    prev_glama: dict[str, str] = {}
     if SNAPSHOT_PATH.exists():
         try:
             prev = json.loads(SNAPSHOT_PATH.read_text())
-            prev_stars = prev.get("stars", {})
+            prev_glama = prev.get("glama", {})
         except json.JSONDecodeError:
             pass
 
-    prev_registry = prev.get("registry", {})
-    prev_glama = prev.get("glama", {})
-    prev_clones = prev.get("clones_14d", {})
     mcp_repos = mcp_repo_names(stars)
 
     def safe(label, fn, default):
@@ -536,21 +490,18 @@ def main() -> int:
             print(f"  {label} failed: {exc}", file=sys.stderr)
             return default
 
+    # Releases were only used to annotate the old Slack digest; the snapshot
+    # Conduit backfills from does not include them. Keep registry / Glama /
+    # clones / stars collection unchanged.
     print("Fetching MCP Registry…")
     registry = safe("registry", lambda: fetch_registry_servers(mcp_repos), {})
-    print("Fetching GitHub releases…")
-    releases = safe("releases", lambda: fetch_latest_releases(mcp_repos), {})
     print("Fetching Glama.ai…")
     glama, glama_skip = load_glama(mcp_repos)
     print("Fetching clone traffic…")
     clones = safe("clones", lambda: fetch_clone_traffic(mcp_repos), {})
 
-    payload = format_message(
-        stars, prev_stars, registry, releases, prev_registry,
-        glama, prev_glama, clones, prev_clones,
-        glama_skip=glama_skip,
-    )
-    post_slack(payload)
+    payload = format_message()
+    post_slack(payload, dry_run=dry_run)
 
     snapshot = {
         "captured_at": datetime.now(timezone.utc).isoformat(),
