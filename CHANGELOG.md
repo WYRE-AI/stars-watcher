@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Slack post is now a one-line Conduit dashboard link.** The daily message in
+  `#github-activity` is `Daily adoption metrics: https://conduit.wyre.ai/admin/revenue`
+  (no inline numbers). Data collection and the `watcher-state` commit of
+  `state/snapshot.json` are unchanged so Conduit can keep backfilling trend
+  history from that file's git history. Override the link with `DASHBOARD_URL`
+  / the `dashboard_url` workflow_dispatch input. Local preview:
+  `python script/report.py --print-message` (or `--dry-run` for collect +
+  snapshot without posting).
+
 ### Added
 
 - **PR-triggered CI workflow** (`.github/workflows/ci.yml`): every pull request now runs a Python 3.12 syntax check of `script/report.py`, the stdlib `unittest` suite (18 tests), and JSON validation of `state/snapshot.json`. Closes the repo's automated-checks gap (Vanta `github-code-change-automated-checks-enabled`).

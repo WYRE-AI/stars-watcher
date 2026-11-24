@@ -1,20 +1,30 @@
 # wyre-stars-watcher
 
-Daily digest of GitHub star activity across every non-archived `wyre-ai`
-repo, posted to Slack.
+Daily adoption watcher for the `wyre-ai` GitHub org.
+
+Each morning the workflow:
+
+1. Collects star / clone / MCP Registry / Glama signals for every
+   non-archived repo.
+2. Commits the result to `state/snapshot.json` on the `watcher-state`
+   branch (Conduit's admin console backfills trend history from that
+   file's git history).
+3. Posts a **single Slack line** to #github-activity pointing at the
+   Conduit admin dashboard — no inline numbers:
+
+   ```
+   Daily adoption metrics: https://conduit.wyre.ai/admin/revenue
+   ```
 
 Runs every day at 14:00 UTC (10am ET / 9am ET depending on DST) via GitHub
 Actions.
 
-> Why no download counts? npm downloads aren't queryable for our packages — we
-> publish to GitHub Packages (`npm.pkg.github.com`), which has no public counter,
-> and the public npm registry reports 0. GitHub deprecated `download_count` on
-> container packages in late 2022. The MCP Registry and Glama.ai are catalogs,
-> not analytics services — they expose presence and version, not downloads.
-> So this digest tracks *reach and freshness* across distribution channels, not
-> downloads or traffic. Adoption metrics (tool calls, active orgs, top vendors)
-> live in a separate digest sourced from the gateway DB — see
-> `wyre-ai/adoption-watcher`.
+> Why no download counts in the snapshot? npm downloads aren't queryable for
+> our packages — we publish to GitHub Packages (`npm.pkg.github.com`), which
+> has no public counter, and the public npm registry reports 0. GitHub
+> deprecated `download_count` on container packages in late 2022. The MCP
+> Registry and Glama.ai are catalogs, not analytics services — they expose
+> presence and version, not downloads.
 
 ## Setup
 
@@ -25,21 +35,29 @@ Actions.
    `.github/workflows/daily.yml` (currently `C0BR5S8F6BZ`, #github-activity).
 
 2. (Optional) If the default `GITHUB_TOKEN` lacks read access to private repos
-   you want included, add a fine-grained PAT as `GH_API_TOKEN` with:
-   `Repository → Administration: Read`, `Metadata: Read`. Without it, the
-   digest will only see public repos under the org.
+   you want included in the snapshot, add a fine-grained PAT as `GH_API_TOKEN`
+   with: `Repository → Administration: Read`, `Metadata: Read`. Without it,
+   only public repos under the org are collected.
 
 3. Glama.ai directory coverage needs an API key. Create one at
    <https://glama.ai/settings/api-keys> and store it as an Actions secret
    named `GLAMA_API_KEY` (repo or org — the daily workflow reads
    `secrets.GLAMA_API_KEY`). Requests send it as `Authorization: Bearer`.
-   If the secret is missing or Glama rejects it (HTTP 401/403), the digest
-   says Glama was skipped instead of listing every server under
-   "Not on Glama".
+   If the secret is missing or Glama rejects it (HTTP 401/403), the run
+   keeps yesterday's Glama map in the snapshot instead of wiping it.
 
-4. Trigger manually the first time to confirm formatting:
+4. The Slack link target is `DASHBOARD_URL` (default
+   `https://conduit.wyre.ai/admin/revenue`). Override it with the
+   `dashboard_url` workflow_dispatch input, or by setting the env var when
+   running locally.
+
+5. Preview the Slack line without posting or hitting the network:
    ```
-   gh workflow run daily.yml --repo wyre-ai/stars-watcher
+   python script/report.py --print-message
+   ```
+   Or run the full collect + snapshot write without posting to Slack:
+   ```
+   python script/report.py --dry-run
    ```
 
 ## How it works
@@ -49,28 +67,12 @@ Actions.
 - `GET /orgs/wyre-ai/repos` (paginated) — stars
 - `GET /repos/wyre-ai/<repo>/traffic/clones` — 14-day clones
   (needs the `GH_API_TOKEN` PAT; skipped gracefully without it)
-- `GET /repos/wyre-ai/<repo>/releases/latest` — release tags
 - `GET registry.modelcontextprotocol.io/v0/servers` — MCP Registry coverage
 - `GET glama.ai/api/mcp/v1/servers` — Glama.ai directory coverage
-  (requires `GLAMA_API_KEY`; skipped with an explicit Slack line when the
-  key is unset or rejected). Results include a Glama.ai attribution link,
-  which their [API data license](https://glama.ai/policies/terms-of-service)
-  requires when the directory data is shown.
+  (requires `GLAMA_API_KEY`; skipped when the key is unset or rejected)
 
-The registry and Glama sections track *reach and freshness* — whether each
-`*-mcp` server is published, current, and indexed. See
-`docs/superpowers/specs/2026-05-20-registry-reach-tracking-design.md`.
-
-PulseMCP traffic tracking (estimated visitors over the last four weeks) was
-removed — the free public search endpoint it depended on
-(`www.pulsemcp.com/api/v0.1/servers`) is gone. PulseMCP now runs a
-private, API-key-gated partner API at `api.pulsemcp.com`; re-add this section
-if WYRE gets partner credentials from `hello@pulsemcp.com`.
-
-The result is written to `state/snapshot.json` and diffed against the previous
-day's snapshot. Deltas, top movers, and totals are formatted as Slack Block Kit
-and POSTed to the webhook. The new snapshot is then committed back so tomorrow
-has something to diff against.
+The result is written to `state/snapshot.json` on `watcher-state`. Slack
+gets only the one-line dashboard pointer above — metrics live in Conduit.
 
 ## Tests
 
@@ -84,13 +86,11 @@ python -m unittest discover -s tests -v
 
 Free. Runs in the GitHub-hosted Linux runner under the standard org allotment;
 the script is short and finishes in under a minute. The repo is itself only
-producing one commit per day.
+producing one commit per day on `watcher-state`.
 
 ## Editing the report
 
-Tweak `script/report.py`. Want it to also pull PyPI stats? Add a `pypistats`
-fetcher next to the npm one. Want a weekly summary alongside the daily? Add a
-second cron + a separate snapshot file.
-
-The Slack message is Block Kit JSON — visualise edits with the
-[Block Kit Builder](https://app.slack.com/block-kit-builder/).
+Tweak `script/report.py`. The Slack message is a single mrkdwn section —
+change `format_message` / `DEFAULT_DASHBOARD_URL` to adjust the line or the
+default link. Collection helpers that feed `state/snapshot.json` stay
+independent of the Slack payload.
